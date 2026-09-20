@@ -3,6 +3,10 @@
 This document is the one-time runbook for setting up and performing releases to
 [registry.terraform.io/namecheap/jenkins](https://registry.terraform.io/providers/namecheap/jenkins).
 
+> **PUBG fork:** This is the inherited upstream runbook. Release jobs are
+> skipped automatically on GitHub forks. Do not reuse Namecheap credentials;
+> see [FORK.md](FORK.md).
+
 ---
 
 ## Prerequisites (one-time setup)

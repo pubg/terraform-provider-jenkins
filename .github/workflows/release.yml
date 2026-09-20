@@ -12,6 +12,7 @@ permissions:
 
 jobs:
   goreleaser:
+    if: ${{ github.event.repository.fork == false }}
     runs-on: ubuntu-latest
     steps:
       # fetch-depth: 0 pulls full history and all tags — required by goreleaser

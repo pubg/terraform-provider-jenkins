@@ -5,6 +5,10 @@ release, and why the pipeline skips work it doesn't need. For the
 release/registry runbook see [RELEASE.md](RELEASE.md); this document covers
 the CI mechanics.
 
+> **PUBG fork:** Build and test workflows run unchanged. Versioning and release
+> jobs are skipped automatically when GitHub identifies the repository as a
+> fork; see [FORK.md](FORK.md).
+
 ## Workflows at a glance
 
 | Workflow | File | Trigger | Purpose |

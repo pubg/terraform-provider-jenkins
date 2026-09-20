@@ -27,7 +27,7 @@ concurrency:
 
 jobs:
   release-please:
-    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
+    if: ${{ github.event.repository.fork == false && (github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success') }}
     runs-on: ubuntu-latest
     steps:
       # A dedicated GitHub App token instead of GITHUB_TOKEN: events authored

@@ -1,13 +1,15 @@
 # Jenkins Terraform Provider
 
-[![CI](https://github.com/namecheap/terraform-provider-jenkins/actions/workflows/test.yml/badge.svg)](https://github.com/namecheap/terraform-provider-jenkins/actions/workflows/test.yml)
-[![codecov](https://codecov.io/gh/namecheap/terraform-provider-jenkins/branch/main/graph/badge.svg)](https://app.codecov.io/gh/namecheap/terraform-provider-jenkins)
+[![CI](https://github.com/pubg/terraform-provider-jenkins/actions/workflows/test.yml/badge.svg)](https://github.com/pubg/terraform-provider-jenkins/actions/workflows/test.yml)
 [![golangci-lint](https://img.shields.io/badge/lint-golangci--lint-4b9be3?logo=go&logoColor=white)](https://golangci-lint.run/)
-[![GitHub release](https://img.shields.io/github/v/release/namecheap/terraform-provider-jenkins?label=release)](https://github.com/namecheap/terraform-provider-jenkins/releases/latest)
+[![Upstream release](https://img.shields.io/github/v/release/namecheap/terraform-provider-jenkins?label=upstream%20release)](https://github.com/namecheap/terraform-provider-jenkins/releases/latest)
 [![Terraform Registry](https://img.shields.io/badge/Terraform%20Registry-namecheap%2Fjenkins-623CE4?logo=terraform)](https://registry.terraform.io/providers/namecheap/jenkins)
-[![License](https://img.shields.io/github/license/namecheap/terraform-provider-jenkins)](LICENSE)
+[![License](https://img.shields.io/github/license/pubg/terraform-provider-jenkins)](LICENSE)
 
 Manage Jenkins jobs, folders, views, and credentials declaratively with Terraform.
+
+> [!IMPORTANT]
+> This is the PUBG-maintained fork of [`namecheap/terraform-provider-jenkins`](https://github.com/namecheap/terraform-provider-jenkins). It tracks upstream while carrying a small set of PUBG-specific changes. The provider identity remains `namecheap/jenkins`, and fork releases are disabled until an independent distribution is prepared. See [FORK.md](FORK.md) for the maintenance policy.
 
 > Community provider — not supported by HashiCorp.
 
