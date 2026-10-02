@@ -36,6 +36,7 @@
 - `.github/CODEOWNERS`의 fork 관리자
 - 릴리스 job의 fork 확인 조건
 - Codecov 대상 repository를 나타내는 `${{ github.repository }}` 값
+- `jenkins_config_file` 리소스와 Config File Provider 테스트 환경
 
 ## Branch 보호
 

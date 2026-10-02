@@ -39,8 +39,32 @@ type mockJenkinsClient struct {
 	mockCreateUser        func(ctx context.Context, username, password, fullName, email string) error
 	mockGetUser           func(ctx context.Context, username string, out interface{}) error
 	mockDeleteUser        func(ctx context.Context, username string) error
+	mockSaveConfigFile    func(ctx context.Context, config managedConfigFile) error
+	mockGetConfigFile     func(ctx context.Context, id, folder string) (*managedConfigFile, error)
+	mockDeleteConfigFile  func(ctx context.Context, id, folder string) error
 	mockApplyCASC         func(ctx context.Context, yamlDoc string) error
 	mockExportCASC        func(ctx context.Context) (string, error)
+}
+
+func (m *mockJenkinsClient) SaveConfigFile(ctx context.Context, config managedConfigFile) error {
+	if m.mockSaveConfigFile == nil {
+		return nil
+	}
+	return m.mockSaveConfigFile(ctx, config)
+}
+
+func (m *mockJenkinsClient) GetConfigFile(ctx context.Context, id, folder string) (*managedConfigFile, error) {
+	if m.mockGetConfigFile == nil {
+		return nil, nil
+	}
+	return m.mockGetConfigFile(ctx, id, folder)
+}
+
+func (m *mockJenkinsClient) DeleteConfigFile(ctx context.Context, id, folder string) error {
+	if m.mockDeleteConfigFile == nil {
+		return nil
+	}
+	return m.mockDeleteConfigFile(ctx, id, folder)
 }
 
 func (m *mockJenkinsClient) ApplyCASC(ctx context.Context, yamlDoc string) error {
