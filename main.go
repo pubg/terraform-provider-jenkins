@@ -1,6 +1,6 @@
 // Package main defines the Jenkins Terraform Provider entrypoint.
 //
-// See https://registry.terraform.io/providers/namecheap/jenkins for usage documentation.
+// See https://registry.terraform.io/providers/pubg/jenkins for usage documentation.
 package main
 
 import (
@@ -9,10 +9,10 @@ import (
 	"log"
 
 	"github.com/hashicorp/terraform-plugin-framework/providerserver"
-	"github.com/namecheap/terraform-provider-jenkins/jenkins"
+	"github.com/pubg/terraform-provider-jenkins/jenkins"
 )
 
-const providerAddress = "registry.terraform.io/namecheap/jenkins"
+const providerAddress = "registry.terraform.io/pubg/jenkins"
 
 func main() {
 	var debug bool

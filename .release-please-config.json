@@ -1,6 +1,7 @@
 {
   "release-type": "go",
   "include-v-in-tag": true,
+  "bootstrap-sha": "5e4d491a26a53d15db3b4845c17cd3405037bea8",
   "packages": {
     ".": {}
   }

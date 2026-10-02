@@ -2,14 +2,14 @@
 
 [![CI](https://github.com/pubg/terraform-provider-jenkins/actions/workflows/test.yml/badge.svg)](https://github.com/pubg/terraform-provider-jenkins/actions/workflows/test.yml)
 [![golangci-lint](https://img.shields.io/badge/lint-golangci--lint-4b9be3?logo=go&logoColor=white)](https://golangci-lint.run/)
-[![Upstream release](https://img.shields.io/github/v/release/namecheap/terraform-provider-jenkins?label=upstream%20release)](https://github.com/namecheap/terraform-provider-jenkins/releases/latest)
-[![Terraform Registry](https://img.shields.io/badge/Terraform%20Registry-namecheap%2Fjenkins-623CE4?logo=terraform)](https://registry.terraform.io/providers/namecheap/jenkins)
+[![Release](https://img.shields.io/github/v/release/pubg/terraform-provider-jenkins)](https://github.com/pubg/terraform-provider-jenkins/releases/latest)
+[![Terraform Registry](https://img.shields.io/badge/Terraform%20Registry-pubg%2Fjenkins-623CE4?logo=terraform)](https://registry.terraform.io/providers/pubg/jenkins)
 [![License](https://img.shields.io/github/license/pubg/terraform-provider-jenkins)](LICENSE)
 
 Manage Jenkins jobs, folders, views, and credentials declaratively with Terraform.
 
 > [!IMPORTANT]
-> This is the PUBG-maintained fork of [`namecheap/terraform-provider-jenkins`](https://github.com/namecheap/terraform-provider-jenkins). It tracks upstream while carrying a small set of PUBG-specific changes. The provider identity remains `namecheap/jenkins`, and fork releases are disabled until an independent distribution is prepared. See [FORK.md](FORK.md) for the maintenance policy.
+> This is the PUBG-maintained fork of [`namecheap/terraform-provider-jenkins`](https://github.com/namecheap/terraform-provider-jenkins). It tracks upstream while carrying a small set of PUBG-specific changes. The provider address is `pubg/jenkins`. See [RELEASE.md](RELEASE.md) for signing and Registry setup, and [the migration guide](docs/guides/migrating-from-namecheap.md) when moving existing state from the upstream provider. See [FORK.md](FORK.md) for the maintenance policy.
 
 > Community provider — not supported by HashiCorp.
 
@@ -31,8 +31,8 @@ terraform {
   required_version = ">= 1.11"
   required_providers {
     jenkins = {
-      source  = "namecheap/jenkins"
-      version = "~> 1.2"
+      source  = "pubg/jenkins"
+      version = "~> 1.3"
     }
   }
 }
@@ -66,57 +66,42 @@ resource "jenkins_job" "deploy" {
 
 ### Terraform and OpenTofu
 
-The provider works with both **Terraform** (≥ 1.0) and **[OpenTofu](https://opentofu.org/)** (≥ 1.6). The configuration above is identical for either tool.
+Use **Terraform >= 1.11** with `source = "pubg/jenkins"`. The first PUBG release uses the 1.3.x version line; installation requires a signed release to be published to the Terraform Registry first.
 
-OpenTofu resolves the same `namecheap/jenkins` source from its own registry, which mirrors GitHub releases automatically:
-
-```hcl
-terraform {
-  required_providers {
-    jenkins = {
-      # OpenTofu pulls this from registry.opentofu.org;
-      # Terraform pulls the same address from registry.terraform.io.
-      source  = "namecheap/jenkins"
-      version = "~> 1.0"
-    }
-  }
-}
-```
-
-Then `tofu init` (or `terraform init`) downloads and verifies the provider. GPG-signature verification uses the release signing key already registered with the Terraform Registry.
+OpenTofu requires a separate provider listing in its registry. Until that listing is available, use Terraform for Registry installation rather than assuming the PUBG namespace is mirrored automatically.
 
 ## Resources
 
 | Resource | Description | Required Plugin |
 |---|---|---|
-| [`jenkins_folder`](https://registry.terraform.io/providers/namecheap/jenkins/latest/docs/resources/folder) | Folder namespace | [Cloudbees Folders](https://plugins.jenkins.io/cloudbees-folder) |
-| [`jenkins_job`](https://registry.terraform.io/providers/namecheap/jenkins/latest/docs/resources/job) | Job / pipeline | — |
-| [`jenkins_view`](https://registry.terraform.io/providers/namecheap/jenkins/latest/docs/resources/view) | View | — |
+| [`jenkins_folder`](https://registry.terraform.io/providers/pubg/jenkins/latest/docs/resources/folder) | Folder namespace | [Cloudbees Folders](https://plugins.jenkins.io/cloudbees-folder) |
+| [`jenkins_job`](https://registry.terraform.io/providers/pubg/jenkins/latest/docs/resources/job) | Job / pipeline | — |
+| [`jenkins_view`](https://registry.terraform.io/providers/pubg/jenkins/latest/docs/resources/view) | View | — |
 | [`jenkins_config_file`](docs/resources/config_file.md) | Global or folder-scoped managed file with selectable file type | [Config File Provider](https://plugins.jenkins.io/config-file-provider/) |
-| [`jenkins_credential_aws`](https://registry.terraform.io/providers/namecheap/jenkins/latest/docs/resources/credential_aws) | AWS credentials | [AWS Credentials](https://plugins.jenkins.io/aws-credentials) |
-| [`jenkins_credential_azure_service_principal`](https://registry.terraform.io/providers/namecheap/jenkins/latest/docs/resources/credential_azure_service_principal) | Azure Service Principal | [Azure Credentials](https://plugins.jenkins.io/azure-credentials) |
-| [`jenkins_credential_github_app`](https://registry.terraform.io/providers/namecheap/jenkins/latest/docs/resources/credential_github_app) | GitHub App | [GitHub Branch Source](https://plugins.jenkins.io/github-branch-source) |
-| [`jenkins_credential_secret_file`](https://registry.terraform.io/providers/namecheap/jenkins/latest/docs/resources/credential_secret_file) | Secret file | — |
-| [`jenkins_credential_secret_text`](https://registry.terraform.io/providers/namecheap/jenkins/latest/docs/resources/credential_secret_text) | Secret text | — |
-| [`jenkins_credential_ssh`](https://registry.terraform.io/providers/namecheap/jenkins/latest/docs/resources/credential_ssh) | SSH key | — |
-| [`jenkins_credential_username`](https://registry.terraform.io/providers/namecheap/jenkins/latest/docs/resources/credential_username) | Username / password | — |
-| [`jenkins_credential_vault_approle`](https://registry.terraform.io/providers/namecheap/jenkins/latest/docs/resources/credential_vault_approle) | HashiCorp Vault AppRole | [HashiCorp Vault](https://plugins.jenkins.io/hashicorp-vault-plugin) |
+| [`jenkins_credential_aws`](https://registry.terraform.io/providers/pubg/jenkins/latest/docs/resources/credential_aws) | AWS credentials | [AWS Credentials](https://plugins.jenkins.io/aws-credentials) |
+| [`jenkins_credential_azure_service_principal`](https://registry.terraform.io/providers/pubg/jenkins/latest/docs/resources/credential_azure_service_principal) | Azure Service Principal | [Azure Credentials](https://plugins.jenkins.io/azure-credentials) |
+| [`jenkins_credential_github_app`](https://registry.terraform.io/providers/pubg/jenkins/latest/docs/resources/credential_github_app) | GitHub App | [GitHub Branch Source](https://plugins.jenkins.io/github-branch-source) |
+| [`jenkins_credential_secret_file`](https://registry.terraform.io/providers/pubg/jenkins/latest/docs/resources/credential_secret_file) | Secret file | — |
+| [`jenkins_credential_secret_text`](https://registry.terraform.io/providers/pubg/jenkins/latest/docs/resources/credential_secret_text) | Secret text | — |
+| [`jenkins_credential_ssh`](https://registry.terraform.io/providers/pubg/jenkins/latest/docs/resources/credential_ssh) | SSH key | — |
+| [`jenkins_credential_username`](https://registry.terraform.io/providers/pubg/jenkins/latest/docs/resources/credential_username) | Username / password | — |
+| [`jenkins_credential_vault_approle`](https://registry.terraform.io/providers/pubg/jenkins/latest/docs/resources/credential_vault_approle) | HashiCorp Vault AppRole | [HashiCorp Vault](https://plugins.jenkins.io/hashicorp-vault-plugin) |
 
 ## Data Sources
 
 | Data Source | Description |
 |---|---|
-| [`jenkins_folder`](https://registry.terraform.io/providers/namecheap/jenkins/latest/docs/data-sources/folder) | Read an existing folder |
-| [`jenkins_job`](https://registry.terraform.io/providers/namecheap/jenkins/latest/docs/data-sources/job) | Read an existing job |
-| [`jenkins_view`](https://registry.terraform.io/providers/namecheap/jenkins/latest/docs/data-sources/view) | Read an existing view |
-| [`jenkins_plugin`](https://registry.terraform.io/providers/namecheap/jenkins/latest/docs/data-sources/plugin) | Query installed plugin version |
-| [`jenkins_credential_aws`](https://registry.terraform.io/providers/namecheap/jenkins/latest/docs/data-sources/credential_aws) | Read an AWS credential |
-| [`jenkins_credential_azure_service_principal`](https://registry.terraform.io/providers/namecheap/jenkins/latest/docs/data-sources/credential_azure_service_principal) | Read an Azure SP credential |
-| [`jenkins_credential_secret_file`](https://registry.terraform.io/providers/namecheap/jenkins/latest/docs/data-sources/credential_secret_file) | Read a secret-file credential |
-| [`jenkins_credential_secret_text`](https://registry.terraform.io/providers/namecheap/jenkins/latest/docs/data-sources/credential_secret_text) | Read a secret-text credential |
-| [`jenkins_credential_ssh`](https://registry.terraform.io/providers/namecheap/jenkins/latest/docs/data-sources/credential_ssh) | Read an SSH credential |
-| [`jenkins_credential_username`](https://registry.terraform.io/providers/namecheap/jenkins/latest/docs/data-sources/credential_username) | Read a username/password credential |
-| [`jenkins_credential_vault_approle`](https://registry.terraform.io/providers/namecheap/jenkins/latest/docs/data-sources/credential_vault_approle) | Read a Vault AppRole credential |
+| [`jenkins_folder`](https://registry.terraform.io/providers/pubg/jenkins/latest/docs/data-sources/folder) | Read an existing folder |
+| [`jenkins_job`](https://registry.terraform.io/providers/pubg/jenkins/latest/docs/data-sources/job) | Read an existing job |
+| [`jenkins_view`](https://registry.terraform.io/providers/pubg/jenkins/latest/docs/data-sources/view) | Read an existing view |
+| [`jenkins_plugin`](https://registry.terraform.io/providers/pubg/jenkins/latest/docs/data-sources/plugin) | Query installed plugin version |
+| [`jenkins_credential_aws`](https://registry.terraform.io/providers/pubg/jenkins/latest/docs/data-sources/credential_aws) | Read an AWS credential |
+| [`jenkins_credential_azure_service_principal`](https://registry.terraform.io/providers/pubg/jenkins/latest/docs/data-sources/credential_azure_service_principal) | Read an Azure SP credential |
+| [`jenkins_credential_secret_file`](https://registry.terraform.io/providers/pubg/jenkins/latest/docs/data-sources/credential_secret_file) | Read a secret-file credential |
+| [`jenkins_credential_secret_text`](https://registry.terraform.io/providers/pubg/jenkins/latest/docs/data-sources/credential_secret_text) | Read a secret-text credential |
+| [`jenkins_credential_ssh`](https://registry.terraform.io/providers/pubg/jenkins/latest/docs/data-sources/credential_ssh) | Read an SSH credential |
+| [`jenkins_credential_username`](https://registry.terraform.io/providers/pubg/jenkins/latest/docs/data-sources/credential_username) | Read a username/password credential |
+| [`jenkins_credential_vault_approle`](https://registry.terraform.io/providers/pubg/jenkins/latest/docs/data-sources/credential_vault_approle) | Read a Vault AppRole credential |
 
 ## Provider Configuration
 

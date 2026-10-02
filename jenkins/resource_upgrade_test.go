@@ -17,6 +17,7 @@ import (
 // the compatibility release gate from issue #79.
 const upgradeFromReleaseVersion = "1.1.2"
 
+// Keep the historical upstream address: PUBG did not publish the SDKv2 release.
 func upgradeExternalProviders() map[string]resource.ExternalProvider {
 	return map[string]resource.ExternalProvider{
 		"jenkins": {

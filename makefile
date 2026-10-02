@@ -23,7 +23,7 @@ build: ## Compile and install binary to GOBIN (prints terraformrc dev_overrides 
 	@echo ""
 	@echo '  provider_installation {'
 	@echo '    dev_overrides {'
-	@echo '      "namecheap/jenkins" = "$(GOBIN)"'
+	@echo '      "pubg/jenkins" = "$(GOBIN)"'
 	@echo '    }'
 	@echo '    direct {}'
 	@echo '  }'

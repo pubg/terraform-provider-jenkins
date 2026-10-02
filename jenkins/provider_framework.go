@@ -12,6 +12,9 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/types"
 )
 
+// version is set by GoReleaser at build time.
+var version = "dev"
+
 func New() provider.Provider {
 	return &JenkinsProvider{}
 }
@@ -24,6 +27,7 @@ type JenkinsProvider struct{}
 // Metadata satisfies the provider.Provider interface for JenkinsProvider
 func (p *JenkinsProvider) Metadata(ctx context.Context, req provider.MetadataRequest, resp *provider.MetadataResponse) {
 	resp.TypeName = "jenkins"
+	resp.Version = version
 }
 
 // Schema satisfies the provider.Provider interface for JenkinsProvider.

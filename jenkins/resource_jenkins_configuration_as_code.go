@@ -42,7 +42,7 @@ func (r *configurationAsCodeResource) Schema(_ context.Context, _ resource.Schem
 	resp.Schema = schema.Schema{
 		MarkdownDescription: `Manages one top-level section of the controller configuration through the ` + "`configuration-as-code`" + ` (JCasC) plugin.
 
-Each instance owns a single top-level JCasC section (` + "`jenkins`, `security`, `unclassified`, `tool`, ..." + `) named by ` + "`section`" + `, and applies the ` + "`yaml`" + ` subtree for it. See the [design notes](https://github.com/namecheap/terraform-provider-jenkins/blob/main/docs/design/casc.md) for the full model.
+Each instance owns a single top-level JCasC section (` + "`jenkins`, `security`, `unclassified`, `tool`, ..." + `) named by ` + "`section`" + `, and applies the ` + "`yaml`" + ` subtree for it. See the [design notes](https://github.com/pubg/terraform-provider-jenkins/blob/main/docs/design/casc.md) for the full model.
 
 Key behaviours:
 
