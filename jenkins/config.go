@@ -88,6 +88,13 @@ type frameworkClient interface {
 	GetUser(ctx context.Context, username string, out interface{}) error
 	DeleteUser(ctx context.Context, username string) error
 
+	// Config File Provider operations back the jenkins_config_file resource.
+	// The resource manages global configuration files through the plugin's
+	// Stapler endpoints.
+	SaveConfigFile(ctx context.Context, config managedConfigFile) error
+	GetConfigFile(ctx context.Context, id string) (*managedConfigFile, error)
+	DeleteConfigFile(ctx context.Context, id string) error
+
 	// Configuration-as-Code operations back the jenkins_configuration_as_code
 	// resource. ApplyCASC POSTs a raw YAML document to the JCasC configure
 	// endpoint; ExportCASC returns the controller's full current configuration

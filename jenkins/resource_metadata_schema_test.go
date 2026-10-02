@@ -21,6 +21,7 @@ func TestAllResourcesMetadata(t *testing.T) {
 		{"jenkins_credential_ssh", newCredentialSSHResource},
 		{"jenkins_credential_username", newCredentialUsernameResource},
 		{"jenkins_credential_vault_approle", newCredentialVaultAppRoleResource},
+		{"jenkins_config_file", newConfigFileResource},
 		{"jenkins_view", newViewResource},
 	}
 	for _, tt := range tests {
@@ -83,6 +84,11 @@ func TestAllResourcesSchema(t *testing.T) {
 			"jenkins_credential_vault_approle",
 			newCredentialVaultAppRoleResource,
 			[]string{"id", "name", "folder", "description", "domain", "scope", "role_id", "secret_id"},
+		},
+		{
+			"jenkins_config_file",
+			newConfigFileResource,
+			[]string{"id", "name", "comment", "content"},
 		},
 		{
 			"jenkins_view",

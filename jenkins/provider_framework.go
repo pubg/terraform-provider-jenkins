@@ -233,6 +233,7 @@ func (p *JenkinsProvider) Resources(ctx context.Context) []func() resource.Resou
 		newFolderResource,
 		newRoleResource,
 		newUserResource,
+		newConfigFileResource,
 		newConfigurationAsCodeResource,
 	}
 }
