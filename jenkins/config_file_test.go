@@ -195,7 +195,7 @@ func TestJenkinsAdapterConfigFileRequests(t *testing.T) {
 	if saved != want {
 		t.Errorf("saved payload = %#v, want %#v", saved, want)
 	}
-	if err := client.DeleteConfigFile(context.Background(), want.ID); err != nil {
+	if err := client.DeleteConfigFile(context.Background(), want.ID, ""); err != nil {
 		t.Fatalf("DeleteConfigFile() error = %v", err)
 	}
 	if deleted != want.ID {
@@ -223,15 +223,133 @@ func TestJenkinsAdapterGetConfigFile(t *testing.T) {
 	if err != nil {
 		t.Fatalf("newJenkinsClient() error = %v", err)
 	}
-	got, err := client.GetConfigFile(context.Background(), "app-config")
+	got, err := client.GetConfigFile(context.Background(), "app-config", "")
 	if err != nil {
 		t.Fatalf("GetConfigFile() error = %v", err)
 	}
 	if got == nil || got.Content != "key: value" {
 		t.Fatalf("GetConfigFile() = %#v", got)
 	}
-	missing, err := client.GetConfigFile(context.Background(), "missing")
+	missing, err := client.GetConfigFile(context.Background(), "missing", "")
 	if err != nil || missing != nil {
 		t.Fatalf("GetConfigFile(missing) = %#v, %v; want nil, nil", missing, err)
+	}
+}
+
+func TestConfigFileFolderRouting(t *testing.T) {
+	for _, tt := range []struct{ folder, base string }{
+		{"", "/configfiles"},
+		{"team/child", "/job/team/job/child/configfiles"},
+		{"/job/team/job/child", "/job/team/job/child/configfiles"},
+		{"team one/child#two", "/job/team%20one/job/child%23two/configfiles"},
+	} {
+		t.Run(tt.folder, func(t *testing.T) {
+			// The same ID in another scope must survive every operation.
+			other := "/job/other/configfiles"
+			contents := map[string]string{other: "untouched"}
+			if tt.folder != "" {
+				contents["/configfiles"] = "global"
+			}
+			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				path := r.URL.EscapedPath()
+				if strings.HasSuffix(path, "/api/json") || strings.Contains(path, "crumbIssuer") {
+					_, _ = io.WriteString(w, `{"name":"child","_class":"com.cloudbees.hudson.plugins.folder.Folder"}`)
+					return
+				}
+				if !strings.HasPrefix(path, tt.base+"/") {
+					t.Errorf("request escaped its scope: %s", path)
+					http.NotFound(w, r)
+					return
+				}
+				switch strings.TrimPrefix(path, tt.base) {
+				case "/":
+					if _, found := contents[tt.base]; found {
+						_, _ = io.WriteString(w, `<a href="editConfig?id=shared">Shared</a>`)
+					}
+				case "/editConfig":
+					_, _ = fmt.Fprintf(w, `<input name="stapler-class" value="org.jenkinsci.plugins.configfiles.custom.CustomConfig">
+<input name="config.id" value="shared"><input name="config.name" value="Shared"><input name="config.comment" value="">
+<textarea name="config.content">%s</textarea>`, html.EscapeString(contents[tt.base]))
+				case "/saveConfig":
+					if err := r.ParseForm(); err != nil {
+						t.Error(err)
+						return
+					}
+					var payload configFileForm
+					if err := json.Unmarshal([]byte(r.Form.Get("json")), &payload); err != nil {
+						t.Error(err)
+						return
+					}
+					contents[tt.base] = payload.Config.Content
+				case "/removeConfig":
+					if r.URL.Query().Get("id") != "shared" {
+						t.Error("wrong deletion ID")
+					}
+					delete(contents, tt.base)
+				default:
+					http.NotFound(w, r)
+				}
+			}))
+			defer srv.Close()
+			client, err := newJenkinsClient(&Config{ServerURL: srv.URL})
+			if err != nil {
+				t.Fatal(err)
+			}
+			ctx := context.Background()
+			for _, content := range []string{"created", "updated"} {
+				if err := client.SaveConfigFile(ctx, managedConfigFile{ID: "shared", Folder: tt.folder, ContentType: "custom", Content: content}); err != nil {
+					t.Fatal(err)
+				}
+				got, err := client.GetConfigFile(ctx, "shared", tt.folder)
+				if err != nil || got == nil || got.Content != content || got.Folder != tt.folder {
+					t.Fatalf("read = %#v, %v", got, err)
+				}
+			}
+			if err := client.DeleteConfigFile(ctx, "shared", tt.folder); err != nil {
+				t.Fatal(err)
+			}
+			if got, err := client.GetConfigFile(ctx, "shared", tt.folder); err != nil || got != nil {
+				t.Fatalf("deleted file = %#v, %v", got, err)
+			}
+			if contents[other] != "untouched" || (tt.folder != "" && contents["/configfiles"] != "global") {
+				t.Fatalf("other scope was changed: %#v", contents)
+			}
+		})
+	}
+}
+
+func TestConfigFileMissingFolder(t *testing.T) {
+	for _, folderExists := range []bool{false, true} {
+		t.Run(fmt.Sprint(folderExists), func(t *testing.T) {
+			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if folderExists && strings.HasSuffix(r.URL.Path, "/api/json") {
+					_, _ = io.WriteString(w, `{"name":"team","_class":"com.cloudbees.hudson.plugins.folder.Folder"}`)
+					return
+				}
+				http.NotFound(w, r)
+			}))
+			defer srv.Close()
+			client, err := newJenkinsClient(&Config{ServerURL: srv.URL})
+			if err != nil {
+				t.Fatal(err)
+			}
+			got, err := client.GetConfigFile(context.Background(), "shared", "team")
+			if got != nil || (err != nil) != folderExists {
+				t.Fatalf("read = %#v, %v", got, err)
+			}
+			if !folderExists {
+				if err := client.DeleteConfigFile(context.Background(), "shared", "team"); err != nil {
+					t.Fatal(err)
+				}
+			}
+		})
+	}
+}
+
+func TestConfigFileInvalidFolder(t *testing.T) {
+	for _, folder := range []string{"/", "job", "../team", "team/../other", "team/.", `team\child`} {
+		if _, err := configFileBasePath(folder); err == nil {
+			t.Errorf("accepted invalid folder %q", folder)
+		}
 	}
 }

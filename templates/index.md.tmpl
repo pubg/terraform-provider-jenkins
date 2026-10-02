@@ -66,7 +66,7 @@ Configure the controller itself — its plugins, agents, users, authorization, a
 
 | Resource | Manages |
 | --- | --- |
-| `jenkins_config_file` | A global file with selectable file type managed by the Config File Provider plugin. |
+| `jenkins_config_file` | A global or folder-scoped file with selectable file type managed by the Config File Provider plugin. |
 | `jenkins_configuration_as_code` | One top-level Configuration-as-Code (JCasC) section, merged into the running config. |
 | `jenkins_plugin` | Idempotent plugin installation via the update center. |
 | `jenkins_node` | A permanent (static) agent node, launched as an inbound (JNLP) agent. |

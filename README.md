@@ -92,7 +92,7 @@ Then `tofu init` (or `terraform init`) downloads and verifies the provider. GPG-
 | [`jenkins_folder`](https://registry.terraform.io/providers/namecheap/jenkins/latest/docs/resources/folder) | Folder namespace | [Cloudbees Folders](https://plugins.jenkins.io/cloudbees-folder) |
 | [`jenkins_job`](https://registry.terraform.io/providers/namecheap/jenkins/latest/docs/resources/job) | Job / pipeline | — |
 | [`jenkins_view`](https://registry.terraform.io/providers/namecheap/jenkins/latest/docs/resources/view) | View | — |
-| [`jenkins_config_file`](docs/resources/config_file.md) | Global managed file with selectable file type | [Config File Provider](https://plugins.jenkins.io/config-file-provider/) |
+| [`jenkins_config_file`](docs/resources/config_file.md) | Global or folder-scoped managed file with selectable file type | [Config File Provider](https://plugins.jenkins.io/config-file-provider/) |
 | [`jenkins_credential_aws`](https://registry.terraform.io/providers/namecheap/jenkins/latest/docs/resources/credential_aws) | AWS credentials | [AWS Credentials](https://plugins.jenkins.io/aws-credentials) |
 | [`jenkins_credential_azure_service_principal`](https://registry.terraform.io/providers/namecheap/jenkins/latest/docs/resources/credential_azure_service_principal) | Azure Service Principal | [Azure Credentials](https://plugins.jenkins.io/azure-credentials) |
 | [`jenkins_credential_github_app`](https://registry.terraform.io/providers/namecheap/jenkins/latest/docs/resources/credential_github_app) | GitHub App | [GitHub Branch Source](https://plugins.jenkins.io/github-branch-source) |

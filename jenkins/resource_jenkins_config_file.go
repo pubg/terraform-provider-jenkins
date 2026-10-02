@@ -5,6 +5,7 @@ import (
 	"maps"
 	"regexp"
 	"slices"
+	"strings"
 
 	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
@@ -23,6 +24,7 @@ var configFileIDPattern = regexp.MustCompile(`^[a-zA-Z0-9_.-]+$`)
 
 type configFileResourceModel struct {
 	ID          types.String `tfsdk:"id"`
+	Folder      types.String `tfsdk:"folder"`
 	Name        types.String `tfsdk:"name"`
 	Comment     types.String `tfsdk:"comment"`
 	Content     types.String `tfsdk:"content"`
@@ -46,9 +48,9 @@ func (r *configFileResource) Metadata(_ context.Context, req resource.MetadataRe
 
 func (r *configFileResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *resource.SchemaResponse) {
 	resp.Schema = schema.Schema{
-		MarkdownDescription: `Manages a global file through the Jenkins [Config File Provider plugin](https://plugins.jenkins.io/config-file-provider/).
+		MarkdownDescription: `Manages a global or folder-scoped file through the Jenkins [Config File Provider plugin](https://plugins.jenkins.io/config-file-provider/).
 
-The content_type selects the Jenkins file type, not a MIME type. Custom files may contain any text format, including YAML. Credential mappings are not managed; existing files with tokenized, Maven server or Properties credential mappings are rejected to avoid losing them. The existing Replace All option is preserved when updating the same type. Requires ` + "`Overall/Manage`" + `.`,
+The content_type selects the Jenkins file type, not a MIME type. Custom files may contain any text format, including YAML. Credential mappings are not managed; existing files with tokenized, Maven server or Properties credential mappings are rejected to avoid losing them. The existing Replace All option is preserved when updating the same type. Global files require ` + "`Overall/Manage`" + `; folder-scoped files require ` + "`Job/Configure`" + ` on the folder. The same file ID can be managed independently in different scopes. Import global files by ID and folder-scoped files as ` + "`folder/path:config-id`" + `.`,
 		Attributes: map[string]schema.Attribute{
 			"id": schema.StringAttribute{
 				Required:            true,
@@ -67,6 +69,12 @@ The content_type selects the Jenkins file type, not a MIME type. Custom files ma
 				Validators: []validator.String{
 					stringvalidator.LengthAtLeast(1),
 				},
+			},
+			"folder": schema.StringAttribute{
+				Optional:            true,
+				MarkdownDescription: "Existing Jenkins folder, e.g. `team/project` or the ID from `jenkins_folder`. Omit or set to `null` for a global file. Changing the folder replaces the resource. Empty strings are not allowed.",
+				PlanModifiers:       []planmodifier.String{stringplanmodifier.RequiresReplace()},
+				Validators:          []validator.String{folderNameValidator{}, stringvalidator.LengthAtLeast(1)},
 			},
 			"comment": schema.StringAttribute{
 				Optional:            true,
@@ -99,7 +107,7 @@ func (r *configFileResource) Create(ctx context.Context, req resource.CreateRequ
 		return
 	}
 
-	existing, err := r.client.GetConfigFile(ctx, data.ID.ValueString())
+	existing, err := r.client.GetConfigFile(ctx, data.ID.ValueString(), data.Folder.ValueString())
 	if err != nil {
 		resp.Diagnostics.AddError("Unable to Create Resource", "Could not check for an existing config file.\n\nError: "+err.Error())
 		return
@@ -153,18 +161,37 @@ func (r *configFileResource) Delete(ctx context.Context, req resource.DeleteRequ
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	if err := r.client.DeleteConfigFile(ctx, data.ID.ValueString()); err != nil {
+	if err := r.client.DeleteConfigFile(ctx, data.ID.ValueString(), data.Folder.ValueString()); err != nil {
 		resp.Diagnostics.AddError("Unable to Delete Resource", err.Error())
 	}
 }
 
 func (r *configFileResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
-	resp.Diagnostics.Append(resp.State.SetAttribute(ctx, path.Root("id"), req.ID)...)
+	id := req.ID
+	folder := types.StringNull()
+	if prefix, suffix, found := strings.Cut(req.ID, ":"); found {
+		if prefix == "" {
+			resp.Diagnostics.AddError("Invalid Import ID", "Use config-id for a global file or folder/path:config-id for a folder-scoped file.")
+			return
+		}
+		if _, err := configFileBasePath(prefix); err != nil {
+			resp.Diagnostics.AddError("Invalid Import ID", err.Error())
+			return
+		}
+		folder, id = types.StringValue(prefix), suffix
+	}
+	if !configFileIDPattern.MatchString(id) {
+		resp.Diagnostics.AddError("Invalid Import ID", "Use config-id for a global file or folder/path:config-id for a folder-scoped file.")
+		return
+	}
+	resp.Diagnostics.Append(resp.State.SetAttribute(ctx, path.Root("id"), id)...)
+	resp.Diagnostics.Append(resp.State.SetAttribute(ctx, path.Root("folder"), folder)...)
 }
 
 func (r *configFileResource) saveAndRead(ctx context.Context, data *configFileResourceModel, action string, diags *diag.Diagnostics) bool {
 	config := managedConfigFile{
 		ID:          data.ID.ValueString(),
+		Folder:      data.Folder.ValueString(),
 		Name:        data.Name.ValueString(),
 		Comment:     data.Comment.ValueString(),
 		Content:     data.Content.ValueString(),
@@ -182,7 +209,7 @@ func (r *configFileResource) saveAndRead(ctx context.Context, data *configFileRe
 }
 
 func (r *configFileResource) populate(ctx context.Context, data *configFileResourceModel, diags *diag.Diagnostics) bool {
-	config, err := r.client.GetConfigFile(ctx, data.ID.ValueString())
+	config, err := r.client.GetConfigFile(ctx, data.ID.ValueString(), data.Folder.ValueString())
 	if err != nil {
 		diags.AddError("Unable to Refresh Resource", "Could not read config file "+data.ID.ValueString()+".\n\nError: "+err.Error())
 		return false

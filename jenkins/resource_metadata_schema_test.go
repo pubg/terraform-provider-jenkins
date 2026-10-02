@@ -88,7 +88,7 @@ func TestAllResourcesSchema(t *testing.T) {
 		{
 			"jenkins_config_file",
 			newConfigFileResource,
-			[]string{"id", "name", "comment", "content"},
+			[]string{"id", "name", "comment", "content", "content_type", "folder"},
 		},
 		{
 			"jenkins_view",

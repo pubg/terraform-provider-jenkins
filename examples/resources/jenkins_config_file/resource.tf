@@ -17,3 +17,15 @@ resource "jenkins_config_file" "json" {
     region    = "us-east-1"
   })
 }
+
+resource "jenkins_folder" "team" {
+  name = "team"
+}
+
+resource "jenkins_config_file" "team_json" {
+  id           = "application-json"
+  name         = "Team application configuration"
+  folder       = jenkins_folder.team.id
+  content_type = "json"
+  content      = jsonencode({ log_level = "debug" })
+}

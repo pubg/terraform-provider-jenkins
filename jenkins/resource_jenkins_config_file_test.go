@@ -8,7 +8,10 @@ import (
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-framework/diag"
+	fwresource "github.com/hashicorp/terraform-plugin-framework/resource"
+	"github.com/hashicorp/terraform-plugin-framework/tfsdk"
 	"github.com/hashicorp/terraform-plugin-framework/types"
+	"github.com/hashicorp/terraform-plugin-go/tftypes"
 	"github.com/hashicorp/terraform-plugin-testing/helper/acctest"
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
 	"github.com/hashicorp/terraform-plugin-testing/terraform"
@@ -66,7 +69,7 @@ func testAccCheckJenkinsConfigFileDestroy(s *terraform.State) error {
 		if rs.Type != "jenkins_config_file" {
 			continue
 		}
-		config, err := testAccClient.GetConfigFile(ctx, rs.Primary.ID)
+		config, err := testAccClient.GetConfigFile(ctx, rs.Primary.ID, rs.Primary.Attributes["folder"])
 		if err != nil {
 			return err
 		}
@@ -80,7 +83,7 @@ func testAccCheckJenkinsConfigFileDestroy(s *terraform.State) error {
 func TestConfigFilePopulate(t *testing.T) {
 	ctx := context.Background()
 	r := &configFileResource{resourceHelper: &resourceHelper{client: &mockJenkinsClient{
-		mockGetConfigFile: func(_ context.Context, id string) (*managedConfigFile, error) {
+		mockGetConfigFile: func(_ context.Context, id, folder string) (*managedConfigFile, error) {
 			return &managedConfigFile{ID: id, Name: "Application", Comment: "Managed", Content: "key: value", ContentType: "json"}, nil
 		},
 	}}}
@@ -155,4 +158,152 @@ func TestAccJenkinsConfigFile_invalidContentType(t *testing.T) {
 			ExpectError: regexp.MustCompile(`Attribute content_type value must be one of`),
 		}},
 	})
+}
+
+func TestAccJenkinsConfigFile_folders(t *testing.T) {
+	parent := "tf-acc-config-" + acctest.RandStringFromCharSet(10, acctest.CharSetAlphaNum)
+	id := parent + "-file"
+	config := func(content string) string {
+		return fmt.Sprintf(`
+resource "jenkins_folder" "parent" { name = %q }
+resource "jenkins_folder" "child" {
+  name = "nested"
+  folder = jenkins_folder.parent.id
+}
+resource "jenkins_config_file" "global" {
+  id = %q
+  name = "Global"
+  folder = null
+  content = "global"
+}
+resource "jenkins_config_file" "parent" {
+  id = %q
+  name = "Parent"
+  folder = jenkins_folder.parent.id
+  content = "parent"
+}
+resource "jenkins_config_file" "child" {
+  id = %q
+  name = "Child"
+  folder = "${jenkins_folder.parent.name}/${jenkins_folder.child.name}"
+  content_type = "json"
+  content = %q
+}`, parent, id, id, id, content)
+	}
+	check := func(childContent string) resource.TestCheckFunc {
+		return resource.ComposeTestCheckFunc(
+			resource.TestCheckNoResourceAttr("jenkins_config_file.global", "folder"),
+			resource.TestCheckResourceAttr("jenkins_config_file.parent", "folder", "/job/"+parent),
+			resource.TestCheckResourceAttr("jenkins_config_file.child", "folder", parent+"/nested"),
+			func(_ *terraform.State) error {
+				for folder, content := range map[string]string{"": "global", parent: "parent", parent + "/nested": childContent} {
+					got, err := testAccClient.GetConfigFile(context.Background(), id, folder)
+					if err != nil {
+						return err
+					}
+					if got == nil || got.Content != content {
+						return fmt.Errorf("folder %q: got %#v, want content %q", folder, got, content)
+					}
+				}
+				return nil
+			},
+		)
+	}
+	resource.Test(t, resource.TestCase{
+		PreCheck:                 func() { testAccPreCheck(t) },
+		ProtoV6ProviderFactories: testAccProviders,
+		CheckDestroy:             testAccCheckJenkinsConfigFileDestroy,
+		Steps: []resource.TestStep{
+			{Config: config(`{"version":1}`), Check: check(`{"version":1}`)},
+			{Config: config(`{"version":1}`), PlanOnly: true},
+			{Config: config(`{"version":2}`), Check: check(`{"version":2}`)},
+			// The harness matches resources by ID by default; these intentionally share one.
+			{ResourceName: "jenkins_config_file.child", ImportState: true, ImportStateId: parent + "/nested:" + id, ImportStateVerify: true, ImportStateVerifyIdentifierAttribute: "name"},
+			{ResourceName: "jenkins_config_file.parent", ImportState: true, ImportStateId: "/job/" + parent + ":" + id, ImportStateVerify: true, ImportStateVerifyIdentifierAttribute: "name"},
+			{ResourceName: "jenkins_config_file.global", ImportState: true, ImportStateId: id, ImportStateVerify: true, ImportStateVerifyIdentifierAttribute: "name"},
+		},
+	})
+}
+
+func TestAccJenkinsConfigFile_folderMoves(t *testing.T) {
+	parent := "tf-acc-move-" + acctest.RandStringFromCharSet(10, acctest.CharSetAlphaNum)
+	id := parent + "-file"
+	config := func(folder string) string {
+		return fmt.Sprintf(`
+resource "jenkins_folder" "parent" { name = %q }
+resource "jenkins_folder" "child" {
+  name = "nested"
+  folder = jenkins_folder.parent.id
+}
+resource "jenkins_config_file" "moving" {
+  id = %q
+  name = "Moving"
+  folder = %s
+  content = "moving"
+}`, parent, id, folder)
+	}
+	check := func(wantFolder string) resource.TestCheckFunc {
+		return func(_ *terraform.State) error {
+			for _, folder := range []string{"", parent, parent + "/nested"} {
+				got, err := testAccClient.GetConfigFile(context.Background(), id, folder)
+				if err != nil {
+					return err
+				}
+				if (got != nil) != (folder == wantFolder) {
+					return fmt.Errorf("unexpected file in folder %q: %#v", folder, got)
+				}
+			}
+			return nil
+		}
+	}
+	resource.Test(t, resource.TestCase{
+		PreCheck:                 func() { testAccPreCheck(t) },
+		ProtoV6ProviderFactories: testAccProviders,
+		CheckDestroy:             testAccCheckJenkinsConfigFileDestroy,
+		Steps: []resource.TestStep{
+			{Config: config("null"), Check: check("")},
+			{Config: config("jenkins_folder.parent.id"), Check: check(parent)},
+			{Config: config("jenkins_folder.child.id"), Check: check(parent + "/nested")},
+			{Config: config("null"), Check: check("")},
+			{Config: config("null"), PlanOnly: true},
+		},
+	})
+}
+
+func TestConfigFileImportScopes(t *testing.T) {
+	ctx := context.Background()
+	r := newConfigFileResource().(*configFileResource)
+	var schema fwresource.SchemaResponse
+	r.Schema(ctx, fwresource.SchemaRequest{}, &schema)
+	for _, tt := range []struct {
+		input, id, folder string
+		invalid           bool
+	}{
+		{"app", "app", "", false},
+		{"team/nested:app", "app", "team/nested", false},
+		{"/job/team/job/nested:app", "app", "/job/team/job/nested", false},
+		{"", "", "", true},
+		{":app", "", "", true},
+		{"team:", "", "", true},
+		{"team:app:other", "", "", true},
+		{"../team:app", "", "", true},
+	} {
+		t.Run(tt.input, func(t *testing.T) {
+			resp := fwresource.ImportStateResponse{State: tfsdk.State{Schema: schema.Schema, Raw: tftypes.NewValue(schema.Schema.Type().TerraformType(ctx), nil)}}
+			r.ImportState(ctx, fwresource.ImportStateRequest{ID: tt.input}, &resp)
+			if resp.Diagnostics.HasError() != tt.invalid {
+				t.Fatalf("diagnostics = %v", resp.Diagnostics)
+			}
+			if tt.invalid {
+				return
+			}
+			var data configFileResourceModel
+			if diags := resp.State.Get(ctx, &data); diags.HasError() {
+				t.Fatal(diags)
+			}
+			if data.ID.ValueString() != tt.id || data.Folder.ValueString() != tt.folder || (tt.folder == "" && !data.Folder.IsNull()) {
+				t.Fatalf("state = %#v", data)
+			}
+		})
+	}
 }
