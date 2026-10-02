@@ -1,6 +1,7 @@
 # Visit https://goreleaser.com for documentation on how to customize this
 # behavior.
 version: 2
+project_name: terraform-provider-jenkins
 before:
   hooks:
     # this is just an example and not a requirement for provider building/publishing
@@ -15,7 +16,7 @@ builds:
     flags:
       - -trimpath
     ldflags:
-      - "-s -w -X main.version={{.Version}} -X main.commit={{.Commit}}"
+      - "-s -w -X github.com/pubg/terraform-provider-jenkins/jenkins.version={{.Version}}"
     goos:
       - freebsd
       - windows
@@ -29,6 +30,8 @@ builds:
     ignore:
       - goos: darwin
         goarch: "386"
+      - goos: windows
+        goarch: arm
     binary: "{{ .ProjectName }}_v{{ .Version }}"
 archives:
   - formats: [zip]
@@ -52,6 +55,9 @@ signs:
       - "--detach-sign"
       - "${artifact}"
 release:
+  github:
+    owner: pubg
+    name: terraform-provider-jenkins
   extra_files:
     - glob: "terraform-registry-manifest.json"
       name_template: "{{ .ProjectName }}_{{ .Version }}_manifest.json"

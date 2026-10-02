@@ -10,9 +10,13 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   goreleaser:
-    if: ${{ github.event.repository.fork == false }}
+    if: ${{ github.repository == 'pubg/terraform-provider-jenkins' }}
     runs-on: ubuntu-latest
     steps:
       # fetch-depth: 0 pulls full history and all tags — required by goreleaser
@@ -38,6 +42,7 @@ jobs:
       - name: Run GoReleaser
         uses: goreleaser/goreleaser-action@f06c13b6b1a9625abc9e6e439d9c05a8f2190e94 # v7.2.3
         with:
+          version: '~> v2'
           args: release --clean
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

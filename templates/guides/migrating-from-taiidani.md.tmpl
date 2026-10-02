@@ -2,12 +2,12 @@
 page_title: "Migrating from taiidani/jenkins"
 subcategory: ""
 description: |-
-  Move existing Terraform state and configuration from the taiidani/jenkins provider to namecheap/jenkins.
+  Move existing Terraform state and configuration from the taiidani/jenkins provider to pubg/jenkins.
 ---
 
 # Migrating from taiidani/jenkins
 
-`namecheap/jenkins` is a fork of [`taiidani/jenkins`](https://registry.terraform.io/providers/taiidani/jenkins) that keeps the original resource and data-source schemas while adding new resources (typed pipeline jobs, nodes, certificate credentials, credential domains), list data sources, provider-level retries and timeouts, and write-only credential secrets. Because the core schemas are unchanged, migrating is a provider swap rather than a rewrite.
+`pubg/jenkins` follows the [`taiidani/jenkins`](https://registry.terraform.io/providers/taiidani/jenkins) lineage through the Namecheap fork that keeps the original resource and data-source schemas while adding new resources (typed pipeline jobs, nodes, certificate credentials, credential domains), list data sources, provider-level retries and timeouts, and write-only credential secrets. Because the core schemas are unchanged, migrating is a provider swap rather than a rewrite.
 
 ## Migration steps
 
@@ -17,8 +17,8 @@ description: |-
    terraform {
      required_providers {
        jenkins = {
-         source  = "namecheap/jenkins"
-         version = "~> 1.0"
+         source  = "pubg/jenkins"
+         version = "~> 1.3"
        }
      }
    }
@@ -33,7 +33,7 @@ description: |-
 3. Rewrite the provider reference recorded in state so your existing resources bind to the new provider:
 
    ```console
-   $ terraform state replace-provider registry.terraform.io/taiidani/jenkins registry.terraform.io/namecheap/jenkins
+   $ terraform state replace-provider registry.terraform.io/taiidani/jenkins registry.terraform.io/pubg/jenkins
    ```
 
 4. Confirm there is nothing to change:
@@ -55,4 +55,4 @@ New capabilities you can adopt incrementally, none of which change existing beha
 
 ## End-to-end example
 
-A complete, runnable stack — folder, credentials (write-only), a pipeline job, an agent node, and a view — lives in [`examples/complete`](https://github.com/namecheap/terraform-provider-jenkins/tree/main/examples/complete) in the provider repository.
+A complete, runnable stack — folder, credentials (write-only), a pipeline job, an agent node, and a view — lives in [`examples/complete`](https://github.com/pubg/terraform-provider-jenkins/tree/main/examples/complete) in the provider repository.

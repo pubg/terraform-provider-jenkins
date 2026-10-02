@@ -5,16 +5,16 @@ release, and why the pipeline skips work it doesn't need. For the
 release/registry runbook see [RELEASE.md](RELEASE.md); this document covers
 the CI mechanics.
 
-> **PUBG fork:** Build and test workflows run unchanged. Versioning and release
-> jobs are skipped automatically when GitHub identifies the repository as a
-> fork; see [FORK.md](FORK.md).
+> **PUBG distribution:** Versioning and release jobs run only in
+> `pubg/terraform-provider-jenkins`, even while GitHub marks it as a fork.
+> See [RELEASE.md](RELEASE.md) for the required signing and App credentials.
 
 ## Workflows at a glance
 
 | Workflow | File | Trigger | Purpose |
 |---|---|---|---|
-| CI | `.github/workflows/test.yml` | PR, push to `main` | Lint, unit, acceptance, integration and docs checks |
-| CodeQL (advanced) | `.github/workflows/codeql.yml` | PR, push to `main`, weekly cron, manual | Static security analysis, provides the "CodeQL (go)" check (note: branch protection currently requires the org default-setup "Analyze (go)" check, not this one) |
+| CI | `.github/workflows/test.yml` | PR, push to `main`, manual | Lint, unit, acceptance, integration, docs and unsigned release packaging checks |
+| CodeQL (advanced) | `.github/workflows/codeql.yml` | PR, push to `main`, weekly cron, manual | Static security analysis, provides the "CodeQL (go)" check |
 | PR Title Check | `.github/workflows/pr-title.yml` | PR | Enforces Conventional Commit PR titles (they become the squash-commit messages release-please reads) |
 | Versioning | `.github/workflows/versioning.yml` | After every CI run on `main` (`workflow_run`), manual | release-please: opens/updates the Release PR; creates the tag when it merges |
 | Release | `.github/workflows/release.yml` | Push of a `v*` tag | GoReleaser: builds, signs and publishes binaries |
@@ -53,7 +53,7 @@ full pipeline like any other change.
 
 What runs for typical changes:
 
-| Change | Lint / Unit / Acceptance / Integration / Docs | CI OK |
+| Change | Lint / Unit / Acceptance / Integration / Docs / Release Packaging | CI OK |
 |---|---|---|
 | Go code, workflows, integration fixtures | ✅ | ✅ |
 | `docs/**` or `templates/**` (registry-published docs) | ✅ | ✅ |
@@ -87,12 +87,17 @@ newly added job can't silently escape its watch. It exists because:
 - a run whose jobs were **all** skipped needs at least one executed job for
   the run-level conclusion — which gates Versioning — to be a deterministic
   `success`;
-- **"CI OK" must be a required status check** (it is, alongside the
-  individual job names). The individual checks alone cannot be relied on:
+- **"CI OK" must be configured as a required status check**. The individual checks alone cannot be relied on:
   if the `changes` gate job itself *fails* (API flake, runner loss), every
   test job is `skipped`, and skipped checks satisfy branch protection — a
   failing "CI OK" is the only thing that blocks such a PR from merging
   untested.
+
+## Release packaging
+
+The `release-check` job runs GoReleaser in snapshot mode with publishing and
+signing disabled. It builds the same platform archives and checksums used by
+`release.yml` without needing secrets. `CI OK` includes this job.
 
 ## How docs reach the Terraform Registry
 

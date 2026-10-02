@@ -8,16 +8,13 @@ description: |-
 
 Manage your entire Jenkins controller as code. This provider covers the full delivery surface — jobs, pipelines (defined through typed resources, no hand-written XML), multibranch projects, folders, and views — alongside the complete credentials catalog, whose write-only secret arguments keep secret material out of Terraform state. It reaches beyond job definitions into controller administration: Configuration-as-Code (JCasC), plugin management, static agents and nodes, user accounts, and Role-Strategy RBAC. Everything is expressed declaratively, so a single `terraform apply` can stand up or reconcile a controller end to end. The provider targets both Terraform and OpenTofu (>= 1.11), the baseline required by its write-only attributes.
 
-## Battle-tested at scale
+Install this distribution with `source = "pubg/jenkins"`. Existing upstream users should follow [Migrating from namecheap/jenkins](guides/migrating-from-namecheap.md).
 
-This is a community provider (not supported by HashiCorp), but it is far from experimental. Namecheap has used it internally for many years to run its Jenkins CI entirely as code, and it continues to manage that estate today:
+## Upstream
 
-- **50+** engineering teams
-- **100+** projects
-- **500+** services
-- up to **~4,000** builds per day
-
-Operating continuously at this size has exercised the full range of workflows the provider models — from folder and RBAC hierarchies to credentials and controller configuration — and hardened them against the edge cases that only show up in production.
+This community provider is maintained by PUBG and is based on
+[`namecheap/terraform-provider-jenkins`](https://github.com/namecheap/terraform-provider-jenkins).
+It publishes independently as `pubg/jenkins` and is not supported by HashiCorp.
 
 ## Requirements
 

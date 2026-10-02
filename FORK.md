@@ -25,16 +25,18 @@
 
 ## Provider와 릴리스
 
-현재 Go module path와 Terraform provider 주소는 upstream과 같은 `namecheap/jenkins`입니다. 따라서 이 fork는 아직 별도의 `pubg/jenkins` 배포판이 아닙니다.
+Terraform provider 주소는 `registry.terraform.io/pubg/jenkins`이고, Go module path는 `github.com/pubg/terraform-provider-jenkins`입니다. 리소스 이름의 `jenkins_` 접두사는 유지합니다.
 
-`.github/workflows/versioning.yml`과 `.github/workflows/release.yml`은 GitHub의 `repository.fork` 값을 확인하고 fork에서는 릴리스 job을 실행하지 않습니다. 독립적인 PUBG 배포판이 필요해지면 별도 작업으로 provider 주소, 버전 정책, 서명 키와 배포 절차를 정의합니다.
+릴리스 작업은 GitHub의 fork 여부와 관계없이 `pubg/terraform-provider-jenkins`에서만 실행합니다. 다른 fork에서는 실행하지 않습니다. 기존 GoReleaser와 release-please를 사용하며, 최초 PUBG 릴리스는 upstream 1.2.8을 기준으로 1.3.0부터 시작합니다. upstream tag는 배포하지 않고 PUBG 변경이 포함된 새 tag를 생성합니다.
+
+서명에는 PUBG가 관리하는 GPG 키를 사용합니다. GitHub App, Actions secrets와 Terraform Registry의 `pubg` namespace 설정은 [RELEASE.md](RELEASE.md)를 따릅니다. 기존 `namecheap/jenkins` 사용자는 [마이그레이션 안내](docs/guides/migrating-from-namecheap.md)를 확인합니다.
 
 현재 fork 고유 변경은 다음과 같습니다.
 
 - `README.md`의 fork 안내와 fork 상태 badge
 - `FORK.md`
 - `.github/CODEOWNERS`의 fork 관리자
-- 릴리스 job의 fork 확인 조건
+- PUBG 저장소 전용 릴리스 조건과 provider 배포 주소
 - Codecov 대상 repository를 나타내는 `${{ github.repository }}` 값
 - `jenkins_config_file` 리소스와 Config File Provider 테스트 환경
 

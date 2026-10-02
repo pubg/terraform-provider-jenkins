@@ -4,7 +4,7 @@ page_title: "jenkins_configuration_as_code Resource - jenkins"
 subcategory: ""
 description: |-
   Manages one top-level section of the controller configuration through the configuration-as-code (JCasC) plugin.
-  Each instance owns a single top-level JCasC section (jenkins, security, unclassified, tool, ...) named by section, and applies the yaml subtree for it. See the design notes https://github.com/namecheap/terraform-provider-jenkins/blob/main/docs/design/casc.md for the full model.
+  Each instance owns a single top-level JCasC section (jenkins, security, unclassified, tool, ...) named by section, and applies the yaml subtree for it. See the design notes https://github.com/pubg/terraform-provider-jenkins/blob/main/docs/design/casc.md for the full model.
   Key behaviours:
   Merge, not replace. Applying a section merges the declared keys into the running configuration; keys present on the controller but not in yaml are left untouched. Drift is detected as a subset: only keys you declare are compared.Secrets. Use JCasC ${VAR} interpolation for secret values; they are resolved by the controller at apply time and never stored in state or compared.Delete is best-effort. JCasC cannot "unset" configuration, so destroying this resource only stops managing the section — the applied values remain on the controller.
   Requires the configuration-as-code plugin and an account with Overall/Administer.
@@ -14,7 +14,7 @@ description: |-
 
 Manages one top-level section of the controller configuration through the `configuration-as-code` (JCasC) plugin.
 
-Each instance owns a single top-level JCasC section (`jenkins`, `security`, `unclassified`, `tool`, ...) named by `section`, and applies the `yaml` subtree for it. See the [design notes](https://github.com/namecheap/terraform-provider-jenkins/blob/main/docs/design/casc.md) for the full model.
+Each instance owns a single top-level JCasC section (`jenkins`, `security`, `unclassified`, `tool`, ...) named by `section`, and applies the `yaml` subtree for it. See the [design notes](https://github.com/pubg/terraform-provider-jenkins/blob/main/docs/design/casc.md) for the full model.
 
 Key behaviours:
 
