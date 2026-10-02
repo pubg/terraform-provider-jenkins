@@ -1,5 +1,16 @@
 # Changelog
 
+## [1.3.0](https://github.com/pubg/terraform-provider-jenkins/compare/v1.2.8...v1.3.0) (2026-10-02)
+
+
+### Features
+
+* **config-file:** manage global and folder-scoped config files ([38348aa](https://github.com/pubg/terraform-provider-jenkins/commit/38348aa0c78df409e29030034aa8b56f431ac4d3))
+* **config-file:** support folder-scoped managed files ([8e6520d](https://github.com/pubg/terraform-provider-jenkins/commit/8e6520d2f93cc35f99bdde204b597b76011c04fa))
+* init ([dccb629](https://github.com/pubg/terraform-provider-jenkins/commit/dccb62961a49b8d7b1107b6d3bbbba3187dff35c))
+* prepare pubg Jenkins provider releases ([0bace36](https://github.com/pubg/terraform-provider-jenkins/commit/0bace36fddc99c4e44b91bf94295c506e4577c8a))
+* prepare pubg Jenkins provider releases ([5708c04](https://github.com/pubg/terraform-provider-jenkins/commit/5708c04fa08f518afb46ac36b8868fabfd77093d))
+
 ## [1.2.8](https://github.com/namecheap/terraform-provider-jenkins/compare/v1.2.7...v1.2.8) (2026-09-17)
 
 
