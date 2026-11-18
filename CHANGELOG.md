@@ -1,5 +1,15 @@
 # Changelog
 
+## [1.4.0](https://github.com/pubg/terraform-provider-jenkins/compare/v1.3.0...v1.4.0) (2026-11-18)
+
+### Features
+
+* Manage Kubernetes Clouds and Pod Templates directly through Jenkins. Manage each Folder's permitted Clouds with `jenkins_folder.permitted_kubernetes_clouds`. ([#4](https://github.com/pubg/terraform-provider-jenkins/pull/4))
+
+### Bug Fixes
+
+* Update Go and HTTP dependencies to resolve security scan findings. ([#4](https://github.com/pubg/terraform-provider-jenkins/pull/4))
+
 ## [1.3.0](https://github.com/pubg/terraform-provider-jenkins/compare/v1.2.8...v1.3.0) (2026-10-02)
 
 
