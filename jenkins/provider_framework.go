@@ -235,6 +235,8 @@ func (p *JenkinsProvider) Resources(ctx context.Context) []func() resource.Resou
 		newPluginResource,
 		newJobResource,
 		newFolderResource,
+		newKubernetesCloudResource,
+		newKubernetesPodTemplateResource,
 		newRoleResource,
 		newUserResource,
 		newConfigFileResource,
