@@ -39,6 +39,7 @@ resource "jenkins_folder" "squad" {
 - `description` (String) The description of this folder's purpose.
 - `display_name` (String) The name of the folder to display in the UI.
 - `folder` (String) The folder namespace to create this folder in. Nested folders are separated with `/`, e.g. `parent/child`. Cannot be changed after creation, and every parent folder must already exist.
+- `permitted_kubernetes_clouds` (Set of String) Usage-restricted Kubernetes Clouds granted directly to this folder. Omit to preserve the existing grants, or set to an empty set to remove them. Jenkins also grants any Clouds inherited from parent folders.
 - `security` (Block Set) The Jenkins project-based security configuration. At most one block may be specified. (see [below for nested schema](#nestedblock--security))
 
 ### Read-Only
@@ -76,6 +77,19 @@ security {
   ]
 }
 ```
+
+## Kubernetes Cloud access
+
+Set `permitted_kubernetes_clouds` to the names of existing Clouds with **Restrict pipeline support to authorized folders** enabled. The [Kubernetes plugin](https://plugins.jenkins.io/kubernetes/#restricting-what-jobs-can-use-your-configured-cloud) grants those Clouds to pipelines in this folder and its descendants.
+
+```hcl
+resource "jenkins_folder" "team" {
+  name                        = "platform-team"
+  permitted_kubernetes_clouds = ["platform-agents"]
+}
+```
+
+Omit the attribute to preserve the folder's direct grants. Use `[]` to remove them. Parent grants are inherited independently of this attribute.
 
 ## Import
 

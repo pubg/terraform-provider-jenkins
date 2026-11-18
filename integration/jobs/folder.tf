@@ -18,9 +18,10 @@ data "jenkins_folder" "example" {
 }
 
 resource "jenkins_folder" "example_subfolder" {
-  name        = "subfolder"
-  folder      = jenkins_folder.example.id
-  description = "A sample subfolder"
+  name                        = "subfolder"
+  folder                      = jenkins_folder.example.id
+  description                 = "A sample subfolder"
+  permitted_kubernetes_clouds = ["example-cloud"]
 }
 
 data "jenkins_folder" "example_subfolder" {

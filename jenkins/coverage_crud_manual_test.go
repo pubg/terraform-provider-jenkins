@@ -366,7 +366,8 @@ func TestCovM_Folder(t *testing.T) {
 	}}}
 	s := covMSchema(ctx, fr)
 	model := &folderResourceModel{
-		Name: types.StringValue("f"), Folder: types.StringNull(),
+		PermittedKubernetesClouds: types.SetNull(types.StringType),
+		Name:                      types.StringValue("f"), Folder: types.StringNull(),
 		DisplayName: types.StringValue(""), Description: types.StringValue(""),
 		Security: types.SetNull(folderSecurityObjectType), Template: types.StringNull(),
 	}

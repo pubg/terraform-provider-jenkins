@@ -16,8 +16,13 @@ type folder struct {
 }
 
 type folderProperties struct {
-	Security *folderSecurity  `xml:"com.cloudbees.hudson.plugins.folder.properties.AuthorizationMatrixProperty,omitempty"`
-	Other    []xmlRawProperty `xml:",any"`
+	Security   *folderSecurity         `xml:"com.cloudbees.hudson.plugins.folder.properties.AuthorizationMatrixProperty,omitempty"`
+	Kubernetes *folderKubernetesClouds `xml:"org.csanchez.jenkins.plugins.kubernetes.KubernetesFolderProperty,omitempty"`
+	Other      []xmlRawProperty        `xml:",any"`
+}
+
+type folderKubernetesClouds struct {
+	PermittedClouds []string `xml:"permittedClouds>string"`
 }
 
 type folderSecurity struct {
