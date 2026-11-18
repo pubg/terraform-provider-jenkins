@@ -40,6 +40,10 @@ run "jobs" {
     condition     = data.jenkins_folder.example_subfolder.description == jenkins_folder.example_subfolder.description
     error_message = "${data.jenkins_folder.example_subfolder.name} did not match description"
   }
+  assert {
+    condition     = jenkins_folder.example_subfolder.permitted_kubernetes_clouds == toset(["example-cloud"])
+    error_message = "The subfolder did not retain its Kubernetes Cloud grant"
+  }
   # The jenkins_job resource stores the practitioner's configured template,
   # while the data source returns Jenkins' re-serialized config.xml; these are
   # semantically but not textually equal, so assert the data source read a real

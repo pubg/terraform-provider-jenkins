@@ -70,7 +70,8 @@ func TestCovJ_NotReadBackAndFolder(t *testing.T) {
 	covJCreate(ctx, t, "folder bad-folder", &folderResource{resourceHelper: &resourceHelper{client: &mockJenkinsClient{
 		mockGetFolder: func(context.Context, string, ...string) (*jenkins.Folder, error) { return nil, fmt.Errorf("boom") },
 	}}}, &folderResourceModel{
-		Name: types.StringValue("f"), Folder: types.StringValue("parent"),
+		PermittedKubernetesClouds: types.SetNull(types.StringType),
+		Name:                      types.StringValue("f"), Folder: types.StringValue("parent"),
 		DisplayName: types.StringValue(""), Description: types.StringValue(""),
 		Security: types.SetNull(folderSecurityObjectType), Template: types.StringNull(),
 	})

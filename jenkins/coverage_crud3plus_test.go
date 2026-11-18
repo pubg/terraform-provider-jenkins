@@ -60,7 +60,7 @@ func covKUpdate(ctx context.Context, t *testing.T, label string, r resource.Reso
 		t.Fatalf("%s state.Set: %v", label, d)
 	}
 	resp := resource.UpdateResponse{State: tfsdk.State{Schema: sr.Schema}}
-	r.Update(ctx, resource.UpdateRequest{Plan: plan, State: st}, &resp)
+	r.Update(ctx, resource.UpdateRequest{Plan: plan, State: st, Config: tfsdk.Config{Schema: sr.Schema, Raw: plan.Raw}}, &resp)
 	if resp.Diagnostics.HasError() {
 		t.Errorf("%s Update happy: %v", label, resp.Diagnostics)
 	}
@@ -104,7 +104,8 @@ func TestCovK_MultibranchUpdate(t *testing.T) {
 func TestCovK_FolderUpdate(t *testing.T) {
 	ctx := context.Background()
 	model := &folderResourceModel{
-		Name: types.StringValue("f"), Folder: types.StringNull(),
+		PermittedKubernetesClouds: types.SetNull(types.StringType),
+		Name:                      types.StringValue("f"), Folder: types.StringNull(),
 		DisplayName: types.StringValue(""), Description: types.StringValue("d"),
 		Security: types.SetNull(folderSecurityObjectType), Template: types.StringNull(),
 	}

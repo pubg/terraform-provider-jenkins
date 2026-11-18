@@ -86,7 +86,8 @@ func TestCovG_FolderRichSecurity(t *testing.T) {
 	var sr resource.SchemaResponse
 	r.Schema(ctx, resource.SchemaRequest{}, &sr)
 	model := &folderResourceModel{
-		Name: types.StringValue("f"), Folder: types.StringNull(),
+		PermittedKubernetesClouds: types.SetNull(types.StringType),
+		Name:                      types.StringValue("f"), Folder: types.StringNull(),
 		DisplayName: types.StringValue("Team F"), Description: types.StringValue("d"),
 		Security: types.SetNull(folderSecurityObjectType), Template: types.StringNull(),
 	}
@@ -115,7 +116,8 @@ func TestCovG_FolderWithSecurity(t *testing.T) {
 		"permissions":          types.SetValueMust(types.StringType, []attr.Value{types.StringValue("hudson.model.Item.Read:alice")}),
 	})
 	model := &folderResourceModel{
-		Name: types.StringValue("f"), Folder: types.StringNull(),
+		PermittedKubernetesClouds: types.SetNull(types.StringType),
+		Name:                      types.StringValue("f"), Folder: types.StringNull(),
 		DisplayName: types.StringValue("Team F"), Description: types.StringValue("d"),
 		Security: types.SetValueMust(folderSecurityObjectType, []attr.Value{secObj}), Template: types.StringNull(),
 	}
@@ -135,7 +137,7 @@ func TestCovG_FolderWithSecurity(t *testing.T) {
 	st := tfsdk.State{Schema: s}
 	st.Set(ctx, model)
 	uResp := resource.UpdateResponse{State: tfsdk.State{Schema: s}}
-	r.Update(ctx, resource.UpdateRequest{Plan: plan, State: st}, &uResp)
+	r.Update(ctx, resource.UpdateRequest{Plan: plan, State: st, Config: tfsdk.Config{Schema: s, Raw: plan.Raw}}, &uResp)
 	if uResp.Diagnostics.HasError() {
 		t.Errorf("folder Update with security: %v", uResp.Diagnostics)
 	}

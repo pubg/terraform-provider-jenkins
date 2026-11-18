@@ -41,6 +41,42 @@ func TestAccJenkinsFolder_basic(t *testing.T) {
 	})
 }
 
+func TestAccJenkinsFolder_permittedKubernetesClouds(t *testing.T) {
+	name := "tf-acc-test-" + acctest.RandStringFromCharSet(10, acctest.CharSetAlphaNum)
+	config := func(description, allowedClouds string) string {
+		return fmt.Sprintf(`
+resource "jenkins_folder" "team" {
+  name        = %q
+  description = %q
+  %s
+}`, name, description, allowedClouds)
+	}
+	checkGrant := resource.ComposeTestCheckFunc(
+		resource.TestCheckTypeSetElemAttr("jenkins_folder.team", "permitted_kubernetes_clouds.*", "cloud-west"),
+		resource.TestCheckTypeSetElemAttr("jenkins_folder.team", "permitted_kubernetes_clouds.*", "cloud-east"),
+	)
+
+	resource.Test(t, resource.TestCase{
+		PreCheck:                 func() { testAccPreCheck(t) },
+		ProtoV6ProviderFactories: testAccProviders,
+		CheckDestroy:             testAccCheckJenkinsFolderDestroy,
+		Steps: []resource.TestStep{
+			{
+				Config: config("Grant two Clouds", `permitted_kubernetes_clouds = ["cloud-west", "cloud-east"]`),
+				Check:  checkGrant,
+			},
+			{
+				Config: config("Preserve the grants", ""),
+				Check:  checkGrant,
+			},
+			{
+				Config: config("Remove the direct grants", "permitted_kubernetes_clouds = []"),
+				Check:  resource.TestCheckResourceAttr("jenkins_folder.team", "permitted_kubernetes_clouds.#", "0"),
+			},
+		},
+	})
+}
+
 func TestAccJenkinsFolder_withDisplayName(t *testing.T) {
 	randString := acctest.RandStringFromCharSet(10, acctest.CharSetAlphaNum)
 

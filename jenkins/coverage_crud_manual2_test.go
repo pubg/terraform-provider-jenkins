@@ -73,7 +73,8 @@ func TestCovN_FolderHappy(t *testing.T) {
 	r.Schema(ctx, resource.SchemaRequest{}, &sr)
 	s := sr.Schema
 	model := &folderResourceModel{
-		Name: types.StringValue("f"), Folder: types.StringNull(),
+		PermittedKubernetesClouds: types.SetNull(types.StringType),
+		Name:                      types.StringValue("f"), Folder: types.StringNull(),
 		DisplayName: types.StringValue(""), Description: types.StringValue(""),
 		Security: types.SetNull(folderSecurityObjectType), Template: types.StringNull(),
 	}

@@ -37,7 +37,8 @@ func TestCovP_ParseAndNotFound(t *testing.T) {
 
 	// folder Read: malformed config → parseFolder error
 	fModel := &folderResourceModel{
-		Name: types.StringValue("f"), Folder: types.StringNull(),
+		PermittedKubernetesClouds: types.SetNull(types.StringType),
+		Name:                      types.StringValue("f"), Folder: types.StringNull(),
 		DisplayName: types.StringValue(""), Description: types.StringValue(""),
 		Security: types.SetNull(folderSecurityObjectType), Template: types.StringNull(),
 	}

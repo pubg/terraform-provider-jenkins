@@ -41,6 +41,19 @@ security {
   ]
 }
 ```
+
+## Kubernetes Cloud access
+
+Set `permitted_kubernetes_clouds` to the names of existing Clouds with **Restrict pipeline support to authorized folders** enabled. The [Kubernetes plugin](https://plugins.jenkins.io/kubernetes/#restricting-what-jobs-can-use-your-configured-cloud) grants those Clouds to pipelines in this folder and its descendants.
+
+```hcl
+resource "jenkins_folder" "team" {
+  name                        = "platform-team"
+  permitted_kubernetes_clouds = ["platform-agents"]
+}
+```
+
+Omit the attribute to preserve the folder's direct grants. Use `[]` to remove them. Parent grants are inherited independently of this attribute.
 {{- if .HasImport }}
 
 ## Import

@@ -3,6 +3,7 @@ package jenkins
 import (
 	"context"
 	"regexp"
+	"slices"
 
 	"github.com/hashicorp/terraform-plugin-framework-validators/setvalidator"
 	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
@@ -31,13 +32,14 @@ var folderSecurityObjectType = types.ObjectType{
 }
 
 type folderResourceModel struct {
-	ID          types.String `tfsdk:"id"`
-	Name        types.String `tfsdk:"name"`
-	Folder      types.String `tfsdk:"folder"`
-	DisplayName types.String `tfsdk:"display_name"`
-	Description types.String `tfsdk:"description"`
-	Security    types.Set    `tfsdk:"security"`
-	Template    types.String `tfsdk:"template"`
+	ID                        types.String `tfsdk:"id"`
+	Name                      types.String `tfsdk:"name"`
+	Folder                    types.String `tfsdk:"folder"`
+	DisplayName               types.String `tfsdk:"display_name"`
+	Description               types.String `tfsdk:"description"`
+	Security                  types.Set    `tfsdk:"security"`
+	Template                  types.String `tfsdk:"template"`
+	PermittedKubernetesClouds types.Set    `tfsdk:"permitted_kubernetes_clouds"`
 }
 
 type folderSecurityBlockModel struct {
@@ -109,6 +111,17 @@ func (r *folderResource) Schema(_ context.Context, _ resource.SchemaRequest, res
 				Default:             stringdefault.StaticString(""),
 				MarkdownDescription: "The description of this folder's purpose.",
 			},
+			"permitted_kubernetes_clouds": schema.SetAttribute{
+				Optional:    true,
+				Computed:    true,
+				ElementType: types.StringType,
+				MarkdownDescription: "Usage-restricted Kubernetes Clouds granted directly to this folder. " +
+					"Omit to preserve the existing grants, or set to an empty set to remove them. " +
+					"Jenkins also grants any Clouds inherited from parent folders.",
+				Validators: []validator.Set{
+					setvalidator.ValueStringsAre(stringvalidator.LengthAtLeast(1)),
+				},
+			},
 			"template": schema.StringAttribute{
 				Computed:            true,
 				MarkdownDescription: "The Jenkins-compatible XML template describing the folder, as used to communicate with Jenkins. An existing folder's XML can be retrieved by appending `/config.xml` to its URL.",
@@ -169,6 +182,7 @@ func (r *folderResource) Create(ctx context.Context, req resource.CreateRequest,
 		DisplayName: data.DisplayName.ValueString(),
 	}
 	f.Properties.Security = securityFromModel(ctx, data.Security, &resp.Diagnostics)
+	setPermittedKubernetesClouds(ctx, &f.Properties, data.PermittedKubernetesClouds, &resp.Diagnostics)
 	if resp.Diagnostics.HasError() {
 		return
 	}
@@ -250,6 +264,11 @@ func (r *folderResource) Update(ctx context.Context, req resource.UpdateRequest,
 	f.Description = data.Description.ValueString()
 	f.DisplayName = data.DisplayName.ValueString()
 	f.Properties.Security = securityFromModel(ctx, data.Security, &resp.Diagnostics)
+	var configuredClouds types.Set
+	resp.Diagnostics.Append(req.Config.GetAttribute(ctx, path.Root("permitted_kubernetes_clouds"), &configuredClouds)...)
+	if !configuredClouds.IsNull() {
+		setPermittedKubernetesClouds(ctx, &f.Properties, data.PermittedKubernetesClouds, &resp.Diagnostics)
+	}
 	if resp.Diagnostics.HasError() {
 		return
 	}
@@ -334,7 +353,31 @@ func (r *folderResource) populate(ctx context.Context, data *folderResourceModel
 	data.DisplayName = types.StringValue(f.DisplayName)
 	data.Description = types.StringValue(f.Description)
 	data.Security = securityToSet(ctx, f.Properties.Security, diags)
+	clouds := []string{}
+	if f.Properties.Kubernetes != nil {
+		clouds = append(clouds, f.Properties.Kubernetes.PermittedClouds...)
+		slices.Sort(clouds)
+		clouds = slices.Compact(clouds)
+	}
+	permittedClouds, cloudDiags := types.SetValueFrom(ctx, types.StringType, clouds)
+	diags.Append(cloudDiags...)
+	data.PermittedKubernetesClouds = permittedClouds
 	return !diags.HasError()
+}
+
+func setPermittedKubernetesClouds(ctx context.Context, properties *folderProperties, clouds types.Set, diags *diag.Diagnostics) {
+	if clouds.IsNull() || clouds.IsUnknown() {
+		return
+	}
+	var names []string
+	diags.Append(clouds.ElementsAs(ctx, &names, false)...)
+	if diags.HasError() {
+		return
+	}
+	properties.Kubernetes = nil
+	if len(names) > 0 {
+		properties.Kubernetes = &folderKubernetesClouds{PermittedClouds: names}
+	}
 }
 
 // securityFromModel converts the "security" set block into the internal

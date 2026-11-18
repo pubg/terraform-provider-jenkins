@@ -45,7 +45,8 @@ func TestCovNest_ParentFolder(t *testing.T) {
 		mockCreateJobInFolder: func(context.Context, string, string, ...string) (*jenkins.Job, error) { return nil, nil },
 		mockGetJob:            func(context.Context, string, ...string) (*jenkins.Job, error) { return fjob, nil },
 	}}}, &folderResourceModel{
-		Name: types.StringValue("f"), Folder: types.StringValue("team"),
+		PermittedKubernetesClouds: types.SetNull(types.StringType),
+		Name:                      types.StringValue("f"), Folder: types.StringValue("team"),
 		DisplayName: types.StringValue(""), Description: types.StringValue(""),
 		Security: types.SetNull(folderSecurityObjectType), Template: types.StringNull(),
 	})
