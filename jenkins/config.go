@@ -110,6 +110,9 @@ var _ frameworkClient = (*jenkinsAdapter)(nil)
 type jenkinsAdapter struct {
 	*jenkins.Jenkins
 
+	// Cloud and Pod Template writes both serialize the mutable controller cloud list.
+	kubernetesConfigMu sync.Mutex
+
 	// pluginsOnce/plugins/pluginsErr memoize the full plugin manifest so that
 	// multiple jenkins_plugin lookups within a single provider lifetime
 	// (one plan/apply) share a single GET of /pluginManager instead of
