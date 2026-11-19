@@ -6,17 +6,20 @@ import (
 	"errors"
 	"net/http"
 	"net/url"
+	"slices"
 	"strconv"
 	"strings"
 
 	"golang.org/x/net/html"
 )
 
+const kubernetesKeyValueEnvVar = "org.csanchez.jenkins.plugins.kubernetes.model.KeyValueEnvVar"
+
 const kubernetesCloudDescriptor = "org.csanchez.jenkins.plugins.kubernetes.KubernetesCloud"
 
 // Jenkins exposes Cloud and Pod Template configuration through its normal
 // configure forms. Neither object has a JSON or XML read endpoint.
-func (j *jenkinsAdapter) readKubernetesForm(ctx context.Context, endpoint string) (map[string]string, error) {
+func (j *jenkinsAdapter) readKubernetesForm(ctx context.Context, endpoint string, env map[string]string) (map[string]string, error) {
 	body, err := j.getConfigFilePage(ctx, endpoint, nil)
 	if err != nil {
 		return nil, err
@@ -40,7 +43,39 @@ func (j *jenkinsAdapter) readKubernetesForm(ctx context.Context, endpoint string
 	}
 
 	fields := map[string]string{}
-	walkHTML(form, func(node *html.Node) {
+	var readFields func(*html.Node)
+	readFields = func(node *html.Node) {
+		class, _ := htmlAttribute(node, "class")
+		classes := strings.Fields(class)
+		if slices.Contains(classes, "to-be-removed") || slices.Contains(classes, "prototypes") {
+			return
+		}
+		if slices.Contains(classes, "repeated-chunk") {
+			name, _ := htmlAttribute(node, "name")
+			descriptor, _ := htmlAttribute(node, "descriptorid")
+			if env != nil && name == "envVars" && descriptor == kubernetesKeyValueEnvVar {
+				var key, value string
+				walkHTML(node, func(input *html.Node) {
+					if input.Type != html.ElementNode || input.Data != "input" {
+						return
+					}
+					field, _ := htmlAttribute(input, "name")
+					switch field {
+					case "_.key":
+						key, _ = htmlAttribute(input, "value")
+					case "_.value":
+						value, _ = htmlAttribute(input, "value")
+					}
+				})
+				if key != "" {
+					env[key] = value
+				}
+			}
+			return
+		}
+		for child := node.FirstChild; child != nil; child = child.NextSibling {
+			readFields(child)
+		}
 		name, _ := htmlAttribute(node, "name")
 		if node.Type != html.ElementNode || !strings.HasPrefix(name, "_.") {
 			return
@@ -64,7 +99,8 @@ func (j *jenkinsAdapter) readKubernetesForm(ctx context.Context, endpoint string
 				fields[name] = selectedOption(node)
 			}
 		}
-	})
+	}
+	readFields(form)
 	return fields, nil
 }
 

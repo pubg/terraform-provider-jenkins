@@ -18,6 +18,11 @@ resource "jenkins_kubernetes_pod_template" "linux" {
   name            = "linux-amd64"
   service_account = "jenkins-agent"
   node_selector   = "kubernetes.io/os=linux,kubernetes.io/arch=amd64"
+  env_vars = {
+    OS         = "linux"
+    OS_VERSION = ""
+    ARCH       = "amd64"
+  }
   yaml = yamlencode({
     spec = {
       automountServiceAccountToken = false
@@ -36,6 +41,8 @@ resource "jenkins_kubernetes_pod_template" "linux" {
 
 ### Optional
 
+- `agent_container` (String) Name of the container that runs the Jenkins agent. Omit for the plugin default.
+- `env_vars` (Map of String) Plain environment variables applied to all containers in the Pod Template. Container-specific values take precedence. Use Kubernetes Secrets for credentials.
 - `inherit_from` (String) Space-separated names of templates to inherit.
 - `label` (String) Jenkins agent label.
 - `namespace` (String) Kubernetes namespace for the agent Pod. Omit to use the Cloud namespace.
