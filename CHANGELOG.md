@@ -1,5 +1,15 @@
 # Changelog
 
+## [1.5.0](https://github.com/pubg/terraform-provider-jenkins/compare/v1.4.0...v1.5.0) (2026-11-19)
+
+### Features
+
+* Configure shared environment variables, the agent container, annotations, and volumes with `jenkins_kubernetes_pod_template`. ([#6](https://github.com/pubg/terraform-provider-jenkins/pull/6))
+
+### Bug Fixes
+
+* Serialize Cloud and Pod Template writes from the same provider client to avoid concurrent updates to the Jenkins Cloud list. ([#6](https://github.com/pubg/terraform-provider-jenkins/pull/6))
+
 ## [1.4.0](https://github.com/pubg/terraform-provider-jenkins/compare/v1.3.0...v1.4.0) (2026-11-18)
 
 ### Features
