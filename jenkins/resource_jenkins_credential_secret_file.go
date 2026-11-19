@@ -2,11 +2,16 @@ package jenkins
 
 import (
 	"context"
+	"errors"
+	"fmt"
+	"net/url"
+	"regexp"
 
 	jenkins "github.com/bndr/gojenkins"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/types"
+	"golang.org/x/net/html"
 )
 
 type credentialSecretFileResourceModel struct {
@@ -52,6 +57,7 @@ func secretFileCredentialSpec() credentialSpec[credentialSecretFileResourceModel
 			hasWriteOnly: true,
 			plainValue:   func(m *credentialSecretFileResourceModel) types.String { return m.SecretBytes },
 			woVersion:    func(m *credentialSecretFileResourceModel) types.String { return m.SecretBytesWoVersion },
+			preserve:     readEncryptedSecretFile,
 		}},
 		build: func(m *credentialSecretFileResourceModel, secrets map[string]string) interface{} {
 			cred := &jenkins.FileCredentials{
@@ -75,6 +81,51 @@ func secretFileCredentialSpec() credentialSpec[credentialSecretFileResourceModel
 			m.Filename = types.StringValue(cred.Filename)
 		},
 	}
+}
+
+var encryptedSecretBytes = regexp.MustCompile(`^\{[A-Za-z0-9+/]+={0,2}\}$`)
+
+// config.xml replaces the entire credential and its GET redacts the secret.
+// The update form carries Jenkins' encrypted SecretBytes for an unchanged file.
+func readEncryptedSecretFile(ctx context.Context, cm *jenkins.CredentialsManager, domain, name string) (string, error) {
+	base := "/credentials/store/system"
+	if cm.Folder != "" {
+		base = "/job/" + cm.Folder + "/credentials/store/folder"
+	}
+	endpoint := base + "/domain/" + url.PathEscape(domain) + "/credential/" + url.PathEscape(name)
+	client := jenkinsAdapter{Jenkins: cm.J}
+	body, err := client.getConfigFilePage(ctx, endpoint+"/updateDialog", nil)
+	if isNotFound(err) {
+		body, err = client.getConfigFilePage(ctx, endpoint+"/update", nil)
+	}
+	if err != nil {
+		return "", fmt.Errorf("cannot preserve the existing secret file: %w", err)
+	}
+	defer func() { _ = body.Close() }()
+
+	doc, err := html.Parse(body)
+	if err != nil {
+		return "", errors.New("cannot parse the Jenkins secret file update form")
+	}
+	var count int
+	var encrypted string
+	walkHTML(doc, func(node *html.Node) {
+		action, _ := htmlAttribute(node, "action")
+		if node.Type != html.ElementNode || node.Data != "form" || action != "updateSubmit" {
+			return
+		}
+		walkHTML(node, func(input *html.Node) {
+			field, _ := htmlAttribute(input, "name")
+			if input.Type == html.ElementNode && input.Data == "input" && field == "_.secretBytes" {
+				count++
+				encrypted, _ = htmlAttribute(input, "value")
+			}
+		})
+	})
+	if count != 1 || !encryptedSecretBytes.MatchString(encrypted) {
+		return "", errors.New("cannot preserve the existing secret file: expected one encrypted file value in the Jenkins update form")
+	}
+	return encrypted, nil
 }
 
 // Metadata should return the full name of the resource.
