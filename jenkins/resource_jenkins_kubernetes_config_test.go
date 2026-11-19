@@ -46,14 +46,32 @@ resource "jenkins_kubernetes_pod_template" "test" {
 		ProtoV6ProviderFactories: testAccProviders,
 		Steps: []resource.TestStep{
 			{Config: config("namespace-a", "karpenter.sh/nodepool=pool-a", ""), Check: check("namespace-a", "karpenter.sh/nodepool=pool-a")},
-			{Config: config("namespace-b", "karpenter.sh/nodepool=pool-b", `env_vars = { OS_VERSION = "", ARCH = "amd64" }`), Check: resource.ComposeTestCheckFunc(
+			{Config: config("namespace-b", "karpenter.sh/nodepool=pool-b", `env_vars = { OS_VERSION = "", ARCH = "amd64" }
+  annotations = { "example.org/project" = "test" }
+  volumes = {
+    "/scratch" = { empty_dir = { memory = true } }
+    "/config" = { config_map = { name = "settings", sub_path = "app.yaml", optional = true } }
+    "/token" = { secret = { name = "workload", default_mode = "256" } }
+    "/data" = { persistent_volume_claim = { claim_name = "cache", read_only = true } }
+    "/host" = { host_path = { path = "/example", read_only = true } }
+    "/mnt/nfs" = { nfs = { server_address = "nfs.example.test", server_path = "/export" } }
+    "/ephemeral" = { generic_ephemeral = { access_modes = "ReadWriteOnce", requests_size = "1Gi" } }
+    "/dynamic" = { dynamic_pvc = { access_modes = "ReadWriteMany", storage_class_name = "shared", requests_size = "2Gi" } }
+  }`), Check: resource.ComposeTestCheckFunc(
 				check("namespace-b", "karpenter.sh/nodepool=pool-b"),
 				resource.TestCheckResourceAttr("jenkins_kubernetes_pod_template.test", "env_vars.OS_VERSION", ""),
 				resource.TestCheckResourceAttr("jenkins_kubernetes_pod_template.test", "env_vars.ARCH", "amd64"),
 				resource.TestCheckResourceAttr("jenkins_kubernetes_pod_template.test", "agent_container", "agent"),
+				resource.TestCheckResourceAttr("jenkins_kubernetes_pod_template.test", "volumes.%", "8"),
+				resource.TestCheckResourceAttr("jenkins_kubernetes_pod_template.test", "annotations.example.org/project", "test"),
 			)},
-			{Config: config("namespace-b", "karpenter.sh/nodepool=pool-b", `env_vars = { OS_VERSION = "2022" }`), Check: resource.ComposeTestCheckFunc(
+			{Config: config("namespace-b", "karpenter.sh/nodepool=pool-b", `env_vars = { OS_VERSION = "2022" }
+    annotations = { "example.org/project" = "updated" }
+    volumes = { "/scratch" = { persistent_volume_claim = { claim_name = "replacement" } } }`), Check: resource.ComposeTestCheckFunc(
 				resource.TestCheckResourceAttr("jenkins_kubernetes_pod_template.test", "env_vars.%", "1"),
+				resource.TestCheckResourceAttr("jenkins_kubernetes_pod_template.test", "volumes.%", "1"),
+				resource.TestCheckResourceAttr("jenkins_kubernetes_pod_template.test", "volumes./scratch.persistent_volume_claim.claim_name", "replacement"),
+				resource.TestCheckResourceAttr("jenkins_kubernetes_pod_template.test", "annotations.example.org/project", "updated"),
 				resource.TestCheckResourceAttr("jenkins_kubernetes_pod_template.test", "env_vars.OS_VERSION", "2022"),
 			)},
 			{Config: config("namespace-b", "karpenter.sh/nodepool=pool-b", ""), Check: resource.TestCheckResourceAttr("jenkins_kubernetes_pod_template.test", "env_vars.%", "0")},

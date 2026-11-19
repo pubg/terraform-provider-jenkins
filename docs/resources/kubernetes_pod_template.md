@@ -23,6 +23,11 @@ resource "jenkins_kubernetes_pod_template" "linux" {
     OS_VERSION = ""
     ARCH       = "amd64"
   }
+  annotations = { "example.org/team" = "build" }
+  volumes = {
+    "/scratch" = { empty_dir = {} }
+    "/config"  = { config_map = { name = "build-settings" } }
+  }
   yaml = yamlencode({
     spec = {
       automountServiceAccountToken = false
@@ -42,6 +47,7 @@ resource "jenkins_kubernetes_pod_template" "linux" {
 ### Optional
 
 - `agent_container` (String) Name of the container that runs the Jenkins agent. Omit for the plugin default.
+- `annotations` (Map of String) Kubernetes annotations added to agent Pods.
 - `env_vars` (Map of String) Plain environment variables applied to all containers in the Pod Template. Container-specific values take precedence. Use Kubernetes Secrets for credentials.
 - `inherit_from` (String) Space-separated names of templates to inherit.
 - `label` (String) Jenkins agent label.
@@ -49,8 +55,113 @@ resource "jenkins_kubernetes_pod_template" "linux" {
 - `node_selector` (String) Comma-separated Kubernetes node selectors in key=value form.
 - `service_account` (String) Kubernetes service account for the Pod.
 - `show_raw_yaml` (Boolean) Print the generated Pod manifest in build logs.
+- `volumes` (Attributes Map) Agent Pod volumes keyed by mount path. Choose one source per mount. Use generic_ephemeral for new dynamically provisioned claims. (see [below for nested schema](#nestedatt--volumes))
 - `yaml` (String) Pod YAML for additional Pod settings. Keep credentials in Jenkins or Kubernetes Secrets.
 
 ### Read-Only
 
 - `id` (String) Jenkins configuration object identifier.
+
+<a id="nestedatt--volumes"></a>
+### Nested Schema for `volumes`
+
+Optional:
+
+- `config_map` (Attributes) Jenkins ConfigMapVolume volume. (see [below for nested schema](#nestedatt--volumes--config_map))
+- `dynamic_pvc` (Attributes) Jenkins DynamicPVCVolume volume. (see [below for nested schema](#nestedatt--volumes--dynamic_pvc))
+- `empty_dir` (Attributes) Jenkins EmptyDirVolume volume. (see [below for nested schema](#nestedatt--volumes--empty_dir))
+- `generic_ephemeral` (Attributes) Jenkins GenericEphemeralVolume volume. (see [below for nested schema](#nestedatt--volumes--generic_ephemeral))
+- `host_path` (Attributes) Jenkins HostPathVolume volume. (see [below for nested schema](#nestedatt--volumes--host_path))
+- `nfs` (Attributes) Jenkins NfsVolume volume. (see [below for nested schema](#nestedatt--volumes--nfs))
+- `persistent_volume_claim` (Attributes) Jenkins PersistentVolumeClaim volume. (see [below for nested schema](#nestedatt--volumes--persistent_volume_claim))
+- `secret` (Attributes) Jenkins SecretVolume volume. (see [below for nested schema](#nestedatt--volumes--secret))
+
+<a id="nestedatt--volumes--config_map"></a>
+### Nested Schema for `volumes.config_map`
+
+Required:
+
+- `name` (String) ConfigMap name.
+
+Optional:
+
+- `optional` (Boolean) Allow the referenced object to be absent.
+- `sub_path` (String) Optional mount subpath.
+
+
+<a id="nestedatt--volumes--dynamic_pvc"></a>
+### Nested Schema for `volumes.dynamic_pvc`
+
+Optional:
+
+- `access_modes` (String) Claim access mode.
+- `requests_size` (String) Requested storage quantity.
+- `storage_class_name` (String) StorageClass for the new claim.
+
+
+<a id="nestedatt--volumes--empty_dir"></a>
+### Nested Schema for `volumes.empty_dir`
+
+Optional:
+
+- `memory` (Boolean) Back the empty directory with memory.
+
+
+<a id="nestedatt--volumes--generic_ephemeral"></a>
+### Nested Schema for `volumes.generic_ephemeral`
+
+Optional:
+
+- `access_modes` (String) Claim access mode.
+- `requests_size` (String) Requested storage quantity.
+- `storage_class_name` (String) StorageClass for the new claim.
+
+
+<a id="nestedatt--volumes--host_path"></a>
+### Nested Schema for `volumes.host_path`
+
+Required:
+
+- `path` (String) Path on the host.
+
+Optional:
+
+- `read_only` (Boolean) Mount read-only.
+
+
+<a id="nestedatt--volumes--nfs"></a>
+### Nested Schema for `volumes.nfs`
+
+Required:
+
+- `server_address` (String) NFS server address.
+- `server_path` (String) Exported path on the NFS server.
+
+Optional:
+
+- `read_only` (Boolean) Mount read-only.
+
+
+<a id="nestedatt--volumes--persistent_volume_claim"></a>
+### Nested Schema for `volumes.persistent_volume_claim`
+
+Required:
+
+- `claim_name` (String) Existing claim name.
+
+Optional:
+
+- `read_only` (Boolean) Mount read-only.
+
+
+<a id="nestedatt--volumes--secret"></a>
+### Nested Schema for `volumes.secret`
+
+Required:
+
+- `name` (String) Secret name.
+
+Optional:
+
+- `default_mode` (String) Default file mode, expressed as a decimal integer.
+- `optional` (Boolean) Allow the referenced object to be absent.

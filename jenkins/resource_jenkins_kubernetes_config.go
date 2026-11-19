@@ -26,6 +26,11 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/types"
 )
 
+var podTemplateMaps = []struct{ attribute, form, class, description string }{
+	{"env_vars", "envVars", kubernetesKeyValueEnvVar, "Plain environment variables applied to all containers in the Pod Template. Container-specific values take precedence. Use Kubernetes Secrets for credentials."},
+	{"annotations", "annotations", "org.csanchez.jenkins.plugins.kubernetes.PodAnnotation", "Kubernetes annotations added to agent Pods."},
+}
+
 var kubernetesID = regexp.MustCompile("^[a-zA-Z0-9_-]+$")
 
 type kubernetesFormField struct {
@@ -103,12 +108,15 @@ func (r *kubernetesConfigResource) Schema(_ context.Context, _ resource.SchemaRe
 	}
 	description := "Manages a Jenkins Kubernetes Cloud through the Jenkins Cloud configuration endpoints. Requires Overall/Administer and the Kubernetes plugin. Cloud settings outside the resource schema use Jenkins defaults on apply."
 	if r.template {
-		attributes["env_vars"] = schema.MapAttribute{
-			Optional: true, Computed: true, ElementType: types.StringType,
-			Default:             mapdefault.StaticValue(types.MapValueMust(types.StringType, map[string]attr.Value{})),
-			Validators:          []validator.Map{mapvalidator.KeysAre(stringvalidator.LengthAtLeast(1))},
-			MarkdownDescription: "Plain environment variables applied to all containers in the Pod Template. Container-specific values take precedence. Use Kubernetes Secrets for credentials.",
+		for _, collection := range podTemplateMaps {
+			attributes[collection.attribute] = schema.MapAttribute{
+				Optional: true, Computed: true, ElementType: types.StringType,
+				Default:             mapdefault.StaticValue(types.MapValueMust(types.StringType, map[string]attr.Value{})),
+				Validators:          []validator.Map{mapvalidator.KeysAre(stringvalidator.LengthAtLeast(1))},
+				MarkdownDescription: collection.description,
+			}
 		}
+		attributes["volumes"] = podVolumesSchema()
 		attributes["cloud"] = kubernetesName("Name of the Kubernetes Cloud that owns the Pod Template.")
 		description = "Manages a Pod Template in a Jenkins Kubernetes Cloud. The resource owns the Pod Template configuration. Supply additional Pod settings through yaml."
 	}
@@ -157,18 +165,26 @@ func (r *kubernetesConfigResource) save(ctx context.Context, plan tfsdk.Plan, st
 		id = cloud.ValueString() + "/" + id
 		createPath = "/cloud/" + cloud.ValueString() + "/create"
 		values["id"] = name.ValueString()
-		var env types.Map
-		diags.Append(plan.GetAttribute(ctx, path.Root("env_vars"), &env)...)
-		var entries map[string]string
-		diags.Append(env.ElementsAs(ctx, &entries, false)...)
+		for _, collection := range podTemplateMaps {
+			var env types.Map
+			diags.Append(plan.GetAttribute(ctx, path.Root(collection.attribute), &env)...)
+			var entries map[string]string
+			diags.Append(env.ElementsAs(ctx, &entries, false)...)
+			if diags.HasError() {
+				return
+			}
+			rows := make([]map[string]string, 0, len(entries))
+			for _, key := range slices.Sorted(maps.Keys(entries)) {
+				rows = append(rows, map[string]string{"stapler-class": collection.class, "$class": collection.class, "key": key, "value": entries[key]})
+			}
+			values[collection.form] = rows
+		}
+		var volumes types.Map
+		diags.Append(plan.GetAttribute(ctx, path.Root("volumes"), &volumes)...)
 		if diags.HasError() {
 			return
 		}
-		rows := make([]map[string]string, 0, len(entries))
-		for _, key := range slices.Sorted(maps.Keys(entries)) {
-			rows = append(rows, map[string]string{"stapler-class": kubernetesKeyValueEnvVar, "$class": kubernetesKeyValueEnvVar, "key": key, "value": entries[key]})
-		}
-		values["envVars"] = rows
+		values["volumes"] = podVolumeForm(volumes)
 	} else {
 		query = map[string]string{"cloudDescriptorName": kubernetesCloudDescriptor}
 	}
@@ -215,8 +231,8 @@ func (r *kubernetesConfigResource) refresh(ctx context.Context, id string, state
 		diags.AddError("Unexpected Jenkins client", "Cannot read a Jenkins Kubernetes resource.")
 		return diags
 	}
-	env := map[string]string{}
-	config, err := client.readKubernetesForm(ctx, r.configPath(r.target(id)), env)
+	rows := map[string][]map[string]string{}
+	config, err := client.readKubernetesForm(ctx, r.configPath(r.target(id)), rows)
 	if isNotFound(err) {
 		state.RemoveResource(ctx)
 		return diags
@@ -231,7 +247,18 @@ func (r *kubernetesConfigResource) refresh(ctx context.Context, id string, state
 	}
 	diags.Append(state.SetAttribute(ctx, path.Root("name"), config["name"])...)
 	if r.template {
-		diags.Append(state.SetAttribute(ctx, path.Root("env_vars"), env)...)
+		for _, collection := range podTemplateMaps {
+			entries := map[string]string{}
+			for _, row := range rows[collection.form] {
+				entries[row["key"]] = row["value"]
+			}
+			diags.Append(state.SetAttribute(ctx, path.Root(collection.attribute), entries)...)
+		}
+		volumes, d := podVolumesState(rows["volumes"])
+		diags.Append(d...)
+		if !d.HasError() {
+			diags.Append(state.SetAttribute(ctx, path.Root("volumes"), volumes)...)
+		}
 	}
 	for _, field := range r.fields {
 		value, found := config[field.formName]

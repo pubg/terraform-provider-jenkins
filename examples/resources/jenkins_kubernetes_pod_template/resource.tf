@@ -8,6 +8,11 @@ resource "jenkins_kubernetes_pod_template" "linux" {
     OS_VERSION = ""
     ARCH       = "amd64"
   }
+  annotations = { "example.org/team" = "build" }
+  volumes = {
+    "/scratch" = { empty_dir = {} }
+    "/config"  = { config_map = { name = "build-settings" } }
+  }
   yaml = yamlencode({
     spec = {
       automountServiceAccountToken = false

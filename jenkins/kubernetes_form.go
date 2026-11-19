@@ -19,7 +19,7 @@ const kubernetesCloudDescriptor = "org.csanchez.jenkins.plugins.kubernetes.Kuber
 
 // Jenkins exposes Cloud and Pod Template configuration through its normal
 // configure forms. Neither object has a JSON or XML read endpoint.
-func (j *jenkinsAdapter) readKubernetesForm(ctx context.Context, endpoint string, env map[string]string) (map[string]string, error) {
+func (j *jenkinsAdapter) readKubernetesForm(ctx context.Context, endpoint string, rows map[string][]map[string]string) (map[string]string, error) {
 	body, err := j.getConfigFilePage(ctx, endpoint, nil)
 	if err != nil {
 		return nil, err
@@ -53,55 +53,46 @@ func (j *jenkinsAdapter) readKubernetesForm(ctx context.Context, endpoint string
 		if slices.Contains(classes, "repeated-chunk") {
 			name, _ := htmlAttribute(node, "name")
 			descriptor, _ := htmlAttribute(node, "descriptorid")
-			if env != nil && name == "envVars" && descriptor == kubernetesKeyValueEnvVar {
-				var key, value string
-				walkHTML(node, func(input *html.Node) {
-					if input.Type != html.ElementNode || input.Data != "input" {
-						return
-					}
-					field, _ := htmlAttribute(input, "name")
-					switch field {
-					case "_.key":
-						key, _ = htmlAttribute(input, "value")
-					case "_.value":
-						value, _ = htmlAttribute(input, "value")
-					}
-				})
-				if key != "" {
-					env[key] = value
-				}
+			if rows != nil && (name == "volumes" || name == "annotations" || (name == "envVars" && descriptor == kubernetesKeyValueEnvVar)) {
+				row := map[string]string{"$class": descriptor}
+				walkHTML(node, func(input *html.Node) { readKubernetesInput(input, row) })
+				rows[name] = append(rows[name], row)
 			}
 			return
 		}
 		for child := node.FirstChild; child != nil; child = child.NextSibling {
 			readFields(child)
 		}
-		name, _ := htmlAttribute(node, "name")
-		if node.Type != html.ElementNode || !strings.HasPrefix(name, "_.") {
-			return
-		}
-		name = strings.TrimPrefix(name, "_.")
-		switch node.Data {
-		case "input":
-			inputType, _ := htmlAttribute(node, "type")
-			if inputType == "checkbox" {
-				_, checked := htmlAttribute(node, "checked")
-				fields[name] = strconv.FormatBool(checked)
-			} else if inputType != "radio" {
-				fields[name], _ = htmlAttribute(node, "value")
-			}
-		case "textarea":
-			fields[name] = htmlText(node)
-		case "select":
-			if value, hasValue := htmlAttribute(node, "value"); hasValue {
-				fields[name] = value
-			} else {
-				fields[name] = selectedOption(node)
-			}
-		}
+		readKubernetesInput(node, fields)
 	}
 	readFields(form)
 	return fields, nil
+}
+
+func readKubernetesInput(node *html.Node, fields map[string]string) {
+	name, _ := htmlAttribute(node, "name")
+	if node.Type != html.ElementNode || !strings.HasPrefix(name, "_.") {
+		return
+	}
+	name = strings.TrimPrefix(name, "_.")
+	switch node.Data {
+	case "input":
+		inputType, _ := htmlAttribute(node, "type")
+		if inputType == "checkbox" {
+			_, checked := htmlAttribute(node, "checked")
+			fields[name] = strconv.FormatBool(checked)
+		} else if inputType != "radio" {
+			fields[name], _ = htmlAttribute(node, "value")
+		}
+	case "textarea":
+		fields[name] = htmlText(node)
+	case "select":
+		if value, hasValue := htmlAttribute(node, "value"); hasValue {
+			fields[name] = value
+		} else {
+			fields[name] = selectedOption(node)
+		}
+	}
 }
 
 func (j *jenkinsAdapter) submitKubernetesForm(ctx context.Context, endpoint string, query map[string]string, values map[string]any) error {
@@ -115,6 +106,8 @@ func (j *jenkinsAdapter) submitKubernetesForm(ctx context.Context, endpoint stri
 	} else {
 		body = strings.NewReader("")
 	}
+	j.kubernetesConfigMu.Lock()
+	defer j.kubernetesConfigMu.Unlock()
 	resp, err := j.Requester.Post(ctx, endpoint, body, &struct{}{}, query)
 	if err != nil {
 		return err
