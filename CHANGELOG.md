@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.5.1](https://github.com/pubg/terraform-provider-jenkins/compare/v1.5.0...v1.5.1) (2026-11-19)
+
+### Bug Fixes
+
+* Preserve Secret File contents when updating only credential metadata. Changes to the configured file or its write-only version still replace the file. ([#8](https://github.com/pubg/terraform-provider-jenkins/pull/8))
+
 ## [1.5.0](https://github.com/pubg/terraform-provider-jenkins/compare/v1.4.0...v1.5.0) (2026-11-19)
 
 ### Features
