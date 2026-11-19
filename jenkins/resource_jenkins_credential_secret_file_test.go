@@ -52,6 +52,23 @@ func TestAccJenkinsCredentialSecretFile_basic(t *testing.T) {
 
 func TestAccJenkinsCredentialSecretFile_folder(t *testing.T) {
 	var cred jenkins.FileCredentials
+	var storedFile string
+	checkFile := func(unchanged bool) resource.TestCheckFunc {
+		return func(s *terraform.State) error {
+			attrs := s.RootModule().Resources["jenkins_credential_secret_file.foo"].Primary.Attributes
+			manager := testAccClient.Credentials()
+			manager.Folder = formatFolderName(attrs["folder"])
+			value, err := readEncryptedSecretFile(t.Context(), manager, attrs["domain"], attrs["name"])
+			if err != nil {
+				return err
+			}
+			if unchanged && value != storedFile {
+				return errors.New("editing file metadata changed the stored Secret File content")
+			}
+			storedFile = value
+			return nil
+		}
+	}
 	randString := acctest.RandStringFromCharSet(10, acctest.CharSetAlphaNum)
 
 	resource.Test(t, resource.TestCase{
@@ -84,6 +101,7 @@ func TestAccJenkinsCredentialSecretFile_folder(t *testing.T) {
 				Check: resource.ComposeTestCheckFunc(
 					resource.TestCheckResourceAttr("jenkins_credential_secret_file.foo", "id", "/job/tf-acc-test-"+randString+"/job/subfolder/test-secret-file"),
 					testAccCheckJenkinsCredentialSecretFileExists("jenkins_credential_secret_file.foo", &cred),
+					checkFile(false),
 				),
 			},
 			{
@@ -119,6 +137,7 @@ func TestAccJenkinsCredentialSecretFile_folder(t *testing.T) {
 				Check: resource.ComposeTestCheckFunc(
 					testAccCheckJenkinsCredentialSecretFileExists("jenkins_credential_secret_file.foo", &cred),
 					resource.TestCheckResourceAttr("jenkins_credential_secret_file.foo", "description", "new-description"),
+					checkFile(true),
 				),
 			},
 		},

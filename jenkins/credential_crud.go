@@ -3,6 +3,7 @@ package jenkins
 import (
 	"context"
 
+	jenkins "github.com/bndr/gojenkins"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/tfsdk"
@@ -53,12 +54,14 @@ const (
 //
 // plainValue returns the model's plain value; woVersion returns its write-only
 // rotation trigger (only consulted when hasWriteOnly is true).
+// preserve supplies the existing value when a full replacement API needs it.
 type credentialSecretField[M any] struct {
 	name         string
 	hasWriteOnly bool
 	alwaysSend   bool
 	plainValue   func(*M) types.String
 	woVersion    func(*M) types.String
+	preserve     func(context.Context, *jenkins.CredentialsManager, string, string) (string, error)
 }
 
 // credentialSpec captures everything type-specific about one credential kind so
@@ -71,9 +74,7 @@ type credentialSpec[M any] struct {
 	// secretFields lists the credential's secret attributes (may be empty).
 	secretFields []credentialSecretField[M]
 	// build returns a pointer to the gojenkins credential struct to Add/Update.
-	// secrets holds the resolved secret values to set, keyed by field name; a
-	// field absent from the map is left unset — on Update this leaves Jenkins'
-	// stored value untouched.
+	// secrets holds the resolved secret values to set, keyed by field name.
 	build func(m *M, secrets map[string]string) interface{}
 	// newAPIValue returns a fresh pointer to the gojenkins credential struct to
 	// decode a read into; fromAPI copies its readable (non-secret) fields into m.
@@ -161,6 +162,18 @@ func (c *credentialCRUD[M]) Update(ctx context.Context, req resource.UpdateReque
 		return
 	}
 
+	for _, field := range c.spec.secretFields {
+		if _, supplied := secrets[field.name]; supplied || field.preserve == nil {
+			continue
+		}
+		value, err := field.preserve(ctx, cm, domain, name)
+		if err != nil {
+			resp.Diagnostics.AddError(crudUpdateErrSummary, crudUpdateErrDetail+err.Error())
+			return
+		}
+		secrets[field.name] = value
+	}
+
 	if err := cm.Update(ctx, domain, name, c.spec.build(&plan, secrets)); err != nil {
 		resp.Diagnostics.AddError(crudUpdateErrSummary, crudUpdateErrDetail+err.Error())
 		return
@@ -207,8 +220,7 @@ func (c *credentialCRUD[M]) resolveSecretsCreate(ctx context.Context, m *M, conf
 // resolveSecretsUpdate resolves each secret field for an update. An alwaysSend
 // field is always included (e.g. SSH's structural private-key source). Otherwise
 // the field is sent only when it should change: for a write-only secret when its
-// version trigger changed, else when the plain value changed. Fields left out
-// keep Jenkins' stored value (also correct under lifecycle.ignore_changes).
+// version trigger changed, else when the plain value changed.
 func (c *credentialCRUD[M]) resolveSecretsUpdate(ctx context.Context, plan, state *M, config tfsdk.Config, diags *diag.Diagnostics) map[string]string {
 	secrets := make(map[string]string)
 	for _, f := range c.spec.secretFields {
