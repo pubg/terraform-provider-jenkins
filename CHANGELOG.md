@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.6.1](https://github.com/pubg/terraform-provider-jenkins/compare/v1.6.0...v1.6.1) (2026-11-25)
+
+### Bug Fixes
+
+* Import an existing `jenkins_credential_oidc_id_token` without replacing it, so Jenkins keeps its signing key. Descriptions outside ISO-8859-1, such as Korean, are now read back correctly. ([#12](https://github.com/pubg/terraform-provider-jenkins/pull/12))
+
 ## [1.6.0](https://github.com/pubg/terraform-provider-jenkins/compare/v1.5.1...v1.6.0) (2026-11-25)
 
 ### Features
