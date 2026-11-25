@@ -3,6 +3,9 @@ resource "jenkins_kubernetes_pod_template" "linux" {
   name            = "linux-amd64"
   service_account = "jenkins-agent"
   node_selector   = "kubernetes.io/os=linux,kubernetes.io/arch=amd64"
+  # Keep an idle agent for ten minutes and let builds without a label use it.
+  idle_minutes    = "10"
+  node_usage_mode = "NORMAL"
   env_vars = {
     OS         = "linux"
     OS_VERSION = ""

@@ -71,7 +71,8 @@ func (j *jenkinsAdapter) readKubernetesForm(ctx context.Context, endpoint string
 
 func readKubernetesInput(node *html.Node, fields map[string]string) {
 	name, _ := htmlAttribute(node, "name")
-	if node.Type != html.ElementNode || !strings.HasPrefix(name, "_.") {
+	// The Pod Template form renders its usage mode with f:enum, which omits the "_." prefix.
+	if node.Type != html.ElementNode || (!strings.HasPrefix(name, "_.") && name != "nodeUsageMode") {
 		return
 	}
 	name = strings.TrimPrefix(name, "_.")

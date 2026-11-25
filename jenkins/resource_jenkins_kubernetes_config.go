@@ -33,6 +33,9 @@ var podTemplateMaps = []struct{ attribute, form, class, description string }{
 
 var kubernetesID = regexp.MustCompile("^[a-zA-Z0-9_-]+$")
 
+// Jenkins renders zero idle minutes as an empty field, so "0" would not survive a read.
+var kubernetesIdleMinutes = regexp.MustCompile("^([1-9][0-9]*)?$")
+
 type kubernetesFormField struct {
 	tfName, formName string
 	attribute        schema.Attribute
@@ -90,6 +93,16 @@ func newKubernetesPodTemplateResource() resource.Resource {
 		kubernetesField("node_selector", "nodeSelector", "Comma-separated Kubernetes node selectors in key=value form."),
 		kubernetesField("yaml", "yaml", "Pod YAML for additional Pod settings. Keep credentials in Jenkins or Kubernetes Secrets."),
 		kubernetesFlag("show_raw_yaml", "showRawYaml", "Print the generated Pod manifest in build logs.", false),
+		{tfName: "idle_minutes", formName: "idleMinutesStr", attribute: schema.StringAttribute{
+			Optional: true, Computed: true, Default: stringdefault.StaticString(""),
+			MarkdownDescription: "Minutes to keep an idle agent Pod for reuse, as a positive integer string. Omit to delete the Pod when its build ends.",
+			Validators:          []validator.String{stringvalidator.RegexMatches(kubernetesIdleMinutes, "use a positive integer, or omit the attribute")},
+		}},
+		{tfName: "node_usage_mode", formName: "nodeUsageMode", attribute: schema.StringAttribute{
+			Optional: true, Computed: true, Default: stringdefault.StaticString("EXCLUSIVE"),
+			MarkdownDescription: "Which builds may run on the agent. `EXCLUSIVE` accepts only builds whose label expression matches the agent. `NORMAL` also accepts builds that request no label. Defaults to `EXCLUSIVE`.",
+			Validators:          []validator.String{stringvalidator.OneOf("EXCLUSIVE", "NORMAL")},
+		}},
 	}}
 }
 
