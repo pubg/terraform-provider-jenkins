@@ -31,6 +31,31 @@ var folderSecurityObjectType = types.ObjectType{
 	},
 }
 
+// folderPipelineLibraryObjectType is the element type of the
+// "pipeline_libraries" list. It must match the nested attributes so the list
+// can be (de)serialized.
+var folderPipelineLibraryObjectType = types.ObjectType{
+	AttrTypes: map[string]attr.Type{
+		"name":                   types.StringType,
+		"default_version":        types.StringType,
+		"implicit":               types.BoolType,
+		"allow_version_override": types.BoolType,
+		"include_in_changesets":  types.BoolType,
+		"git_remote":             types.StringType,
+		"git_credentials_id":     types.StringType,
+	},
+}
+
+type folderPipelineLibraryModel struct {
+	Name                 types.String `tfsdk:"name"`
+	DefaultVersion       types.String `tfsdk:"default_version"`
+	Implicit             types.Bool   `tfsdk:"implicit"`
+	AllowVersionOverride types.Bool   `tfsdk:"allow_version_override"`
+	IncludeInChangesets  types.Bool   `tfsdk:"include_in_changesets"`
+	GitRemote            types.String `tfsdk:"git_remote"`
+	GitCredentialsID     types.String `tfsdk:"git_credentials_id"`
+}
+
 type folderResourceModel struct {
 	ID                        types.String `tfsdk:"id"`
 	Name                      types.String `tfsdk:"name"`
@@ -40,6 +65,7 @@ type folderResourceModel struct {
 	Security                  types.Set    `tfsdk:"security"`
 	Template                  types.String `tfsdk:"template"`
 	PermittedKubernetesClouds types.Set    `tfsdk:"permitted_kubernetes_clouds"`
+	PipelineLibraries         types.List   `tfsdk:"pipeline_libraries"`
 }
 
 type folderSecurityBlockModel struct {
@@ -122,6 +148,56 @@ func (r *folderResource) Schema(_ context.Context, _ resource.SchemaRequest, res
 					setvalidator.ValueStringsAre(stringvalidator.LengthAtLeast(1)),
 				},
 			},
+			"pipeline_libraries": schema.ListNestedAttribute{
+				Optional: true,
+				MarkdownDescription: "Pipeline libraries configured directly on this folder, each retrieved from a Git repository. " +
+					"Omit to leave the folder's libraries unmanaged, or set to an empty list to remove them. " +
+					"Pipelines in this folder and its descendants can load these libraries; they run in the Groovy sandbox.",
+				NestedObject: schema.NestedAttributeObject{
+					Attributes: map[string]schema.Attribute{
+						"name": schema.StringAttribute{
+							Required:            true,
+							MarkdownDescription: "The name pipelines use to load the library, as in `@Library('name')`.",
+							Validators: []validator.String{
+								stringvalidator.LengthAtLeast(1),
+							},
+						},
+						"default_version": schema.StringAttribute{
+							Optional:            true,
+							MarkdownDescription: "The branch, tag or commit loaded when a pipeline does not select a version.",
+							Validators: []validator.String{
+								stringvalidator.LengthAtLeast(1),
+							},
+						},
+						"implicit": schema.BoolAttribute{
+							Optional:            true,
+							MarkdownDescription: "Whether pipelines load the library without an `@Library` annotation. Requires `default_version`. Defaults to `false`.",
+						},
+						"allow_version_override": schema.BoolAttribute{
+							Optional:            true,
+							MarkdownDescription: "Whether a pipeline may select another version, as in `@Library('name@version')`. Defaults to `true`.",
+						},
+						"include_in_changesets": schema.BoolAttribute{
+							Optional:            true,
+							MarkdownDescription: "Whether library changes are included in the changesets of the builds that load it. Defaults to `true`.",
+						},
+						"git_remote": schema.StringAttribute{
+							Required:            true,
+							MarkdownDescription: "The URL of the Git repository holding the library.",
+							Validators: []validator.String{
+								stringvalidator.LengthAtLeast(1),
+							},
+						},
+						"git_credentials_id": schema.StringAttribute{
+							Optional:            true,
+							MarkdownDescription: "The ID of the credential used to fetch the repository.",
+							Validators: []validator.String{
+								stringvalidator.LengthAtLeast(1),
+							},
+						},
+					},
+				},
+			},
 			"template": schema.StringAttribute{
 				Computed:            true,
 				MarkdownDescription: "The Jenkins-compatible XML template describing the folder, as used to communicate with Jenkins. An existing folder's XML can be retrieved by appending `/config.xml` to its URL.",
@@ -183,6 +259,7 @@ func (r *folderResource) Create(ctx context.Context, req resource.CreateRequest,
 	}
 	f.Properties.Security = securityFromModel(ctx, data.Security, &resp.Diagnostics)
 	setPermittedKubernetesClouds(ctx, &f.Properties, data.PermittedKubernetesClouds, &resp.Diagnostics)
+	setPipelineLibraries(ctx, &f.Properties, data.PipelineLibraries, &resp.Diagnostics)
 	if resp.Diagnostics.HasError() {
 		return
 	}
@@ -269,6 +346,7 @@ func (r *folderResource) Update(ctx context.Context, req resource.UpdateRequest,
 	if !configuredClouds.IsNull() {
 		setPermittedKubernetesClouds(ctx, &f.Properties, data.PermittedKubernetesClouds, &resp.Diagnostics)
 	}
+	setPipelineLibraries(ctx, &f.Properties, data.PipelineLibraries, &resp.Diagnostics)
 	if resp.Diagnostics.HasError() {
 		return
 	}
@@ -362,7 +440,126 @@ func (r *folderResource) populate(ctx context.Context, data *folderResourceModel
 	permittedClouds, cloudDiags := types.SetValueFrom(ctx, types.StringType, clouds)
 	diags.Append(cloudDiags...)
 	data.PermittedKubernetesClouds = permittedClouds
+	data.PipelineLibraries = pipelineLibrariesToList(ctx, &f.Properties, data.PipelineLibraries, diags)
 	return !diags.HasError()
+}
+
+// setPipelineLibraries writes the "pipeline_libraries" list into the folder
+// properties. A null list leaves the properties alone, which is how an omitted
+// attribute leaves the libraries already on the folder unmanaged.
+func setPipelineLibraries(ctx context.Context, properties *folderProperties, list types.List, diags *diag.Diagnostics) {
+	if list.IsNull() || list.IsUnknown() {
+		return
+	}
+	var models []folderPipelineLibraryModel
+	diags.Append(list.ElementsAs(ctx, &models, false)...)
+	if diags.HasError() {
+		return
+	}
+
+	libraries := make([]folderLibrary, 0, len(models))
+	seen := make(map[string]struct{}, len(models))
+	for _, m := range models {
+		name := m.Name.ValueString()
+		if _, ok := seen[name]; ok {
+			diags.AddAttributeError(path.Root("pipeline_libraries"), "Duplicate Pipeline Library",
+				"The library name "+name+" is configured more than once. Jenkins loads a library by its name, so each name must be unique within the folder.")
+			return
+		}
+		seen[name] = struct{}{}
+		implicit := boolOrDefault(m.Implicit, false)
+		if implicit && m.DefaultVersion.ValueString() == "" {
+			diags.AddAttributeError(path.Root("pipeline_libraries"), "Missing Default Version",
+				"The library "+name+" is implicit but has no default_version. Jenkins cannot load an implicit library without one.")
+			return
+		}
+		libraries = append(libraries, folderLibrary{
+			Name:                 name,
+			Retriever:            newGitFolderLibraryRetriever(m.GitRemote.ValueString(), m.GitCredentialsID.ValueString()),
+			DefaultVersion:       m.DefaultVersion.ValueString(),
+			Implicit:             implicit,
+			AllowVersionOverride: boolOrDefault(m.AllowVersionOverride, true),
+			IncludeInChangesets:  boolOrDefault(m.IncludeInChangesets, true),
+		})
+	}
+
+	if err := properties.setPipelineLibraries(libraries); err != nil {
+		diags.AddError("Unable to Render Folder Configuration", err.Error())
+	}
+}
+
+// boolOrDefault returns the configured value, or fallback when the attribute
+// was omitted.
+func boolOrDefault(value types.Bool, fallback bool) bool {
+	if value.IsNull() || value.IsUnknown() {
+		return fallback
+	}
+	return value.ValueBool()
+}
+
+// pipelineLibrariesToList reports the libraries Jenkins holds for the folder,
+// or null when prior (the planned or previously stored list) is null: the
+// attribute is not computed, so an omitted attribute has to stay null in
+// state. It is not computed because Terraform plans a change on every run for
+// a computed list of nested attributes whose configuration is null.
+//
+// A library whose retriever is not a Git SCM source is still listed, with null
+// Git attributes, so that replacing it shows up in the plan.
+//
+// Jenkins always reports a value for the three flags, so a flag that prior
+// left null stays null while Jenkins holds the default — otherwise an omitted
+// flag would not survive the round trip. Any other value is reported as is, so
+// drift stays visible.
+func pipelineLibrariesToList(ctx context.Context, properties *folderProperties, prior types.List, diags *diag.Diagnostics) types.List {
+	if prior.IsNull() || prior.IsUnknown() {
+		return types.ListNull(folderPipelineLibraryObjectType)
+	}
+	libraries, err := properties.pipelineLibraries()
+	if err != nil {
+		diags.AddError("Unable to Parse Folder Configuration", err.Error())
+		return types.ListNull(folderPipelineLibraryObjectType)
+	}
+
+	var priorModels []folderPipelineLibraryModel
+	diags.Append(prior.ElementsAs(ctx, &priorModels, false)...)
+	priorByName := make(map[string]folderPipelineLibraryModel, len(priorModels))
+	for _, m := range priorModels {
+		priorByName[m.Name.ValueString()] = m
+	}
+	flag := func(prior types.Bool, known bool, value, fallback bool) types.Bool {
+		if known && prior.IsNull() && value == fallback {
+			return types.BoolNull()
+		}
+		return types.BoolValue(value)
+	}
+
+	models := make([]folderPipelineLibraryModel, 0, len(libraries))
+	for _, library := range libraries {
+		p, known := priorByName[library.Name]
+		m := folderPipelineLibraryModel{
+			Name:                 types.StringValue(library.Name),
+			DefaultVersion:       types.StringNull(),
+			Implicit:             flag(p.Implicit, known, library.Implicit, false),
+			AllowVersionOverride: flag(p.AllowVersionOverride, known, library.AllowVersionOverride, true),
+			IncludeInChangesets:  flag(p.IncludeInChangesets, known, library.IncludeInChangesets, true),
+			GitRemote:            types.StringNull(),
+			GitCredentialsID:     types.StringNull(),
+		}
+		if library.DefaultVersion != "" {
+			m.DefaultVersion = types.StringValue(library.DefaultVersion)
+		}
+		if library.isGit() {
+			m.GitRemote = types.StringValue(library.Retriever.SCM.Remote)
+			if id := library.Retriever.SCM.CredentialsID; id != "" {
+				m.GitCredentialsID = types.StringValue(id)
+			}
+		}
+		models = append(models, m)
+	}
+
+	list, d := types.ListValueFrom(ctx, folderPipelineLibraryObjectType, models)
+	diags.Append(d...)
+	return list
 }
 
 func setPermittedKubernetesClouds(ctx context.Context, properties *folderProperties, clouds types.Set, diags *diag.Diagnostics) {

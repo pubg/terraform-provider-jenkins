@@ -71,6 +71,7 @@ func TestCovJ_NotReadBackAndFolder(t *testing.T) {
 		mockGetFolder: func(context.Context, string, ...string) (*jenkins.Folder, error) { return nil, fmt.Errorf("boom") },
 	}}}, &folderResourceModel{
 		PermittedKubernetesClouds: types.SetNull(types.StringType),
+		PipelineLibraries:         types.ListNull(folderPipelineLibraryObjectType),
 		Name:                      types.StringValue("f"), Folder: types.StringValue("parent"),
 		DisplayName: types.StringValue(""), Description: types.StringValue(""),
 		Security: types.SetNull(folderSecurityObjectType), Template: types.StringNull(),

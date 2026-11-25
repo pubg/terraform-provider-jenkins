@@ -54,6 +54,29 @@ resource "jenkins_folder" "team" {
 ```
 
 Omit the attribute to preserve the folder's direct grants. Use `[]` to remove them. Parent grants are inherited independently of this attribute.
+
+## Pipeline libraries
+
+~> `pipeline_libraries` needs the [Pipeline: Groovy Libraries Plugin](https://plugins.jenkins.io/pipeline-groovy-lib/) and the [Git Plugin](https://plugins.jenkins.io/git/) installed.
+
+Set `pipeline_libraries` to the [folder-level Pipeline libraries](https://www.jenkins.io/doc/book/pipeline/shared-libraries/#folder-level-shared-libraries) pipelines in this folder and its descendants may load. Each library is retrieved from a Git repository through a Git SCM source that discovers branches. Folder-level libraries run in the Groovy sandbox.
+
+```hcl
+resource "jenkins_folder" "team" {
+  name = "platform-team"
+
+  pipeline_libraries = [
+    {
+      name               = "team-steps"
+      default_version    = "main"
+      git_remote         = "https://git.example.com/platform/team-steps.git"
+      git_credentials_id = "git-token"
+    },
+  ]
+}
+```
+
+Omit the attribute to leave the folder's libraries unmanaged: Terraform neither reads nor changes them, and removing the attribute from a configuration leaves the libraries on the folder. Use `[]` to remove them. A configured list replaces every library on the folder, including one with a retriever other than a Git SCM source, which is reported with a null `git_remote`.
 {{- if .HasImport }}
 
 ## Import
