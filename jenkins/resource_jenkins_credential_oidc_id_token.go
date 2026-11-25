@@ -12,6 +12,7 @@ import (
 
 	jenkins "github.com/bndr/gojenkins"
 	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
+	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
@@ -197,7 +198,7 @@ func (r *credentialOIDCIDTokenResource) Create(ctx context.Context, req resource
 	}
 
 	m.ID = types.StringValue(generateCredentialID(folder, name))
-	if err := cred.copyTo(ctx, cm, folder, &m); err != nil {
+	if err := cred.copyTo(ctx, cm, folder, domain, &m); err != nil {
 		resp.Diagnostics.AddError(crudCreateErrSummary, crudCreateErrDetail+err.Error())
 		return
 	}
@@ -225,11 +226,39 @@ func (r *credentialOIDCIDTokenResource) Read(ctx context.Context, req resource.R
 	}
 
 	m.ID = types.StringValue(generateCredentialID(folder, name))
-	if err := cred.copyTo(ctx, cm, folder, &m); err != nil {
+	if err := cred.copyTo(ctx, cm, folder, domain, &m); err != nil {
 		resp.Diagnostics.AddError(crudReadErrSummary, crudReadErrDetail+err.Error())
 		return
 	}
 	resp.Diagnostics.Append(resp.State.Set(ctx, &m)...)
+}
+
+// ImportState leaves the state in the form a configuration produces, so that an
+// imported credential plans as unchanged. Any difference forces a replacement,
+// and replacing the credential makes Jenkins generate a new signing key. The
+// shared import sets an empty folder for a global credential and keeps the
+// folder as written in the import ID; here a global credential has no folder
+// and a folder takes the form of a jenkins_folder ID.
+func (r *credentialOIDCIDTokenResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
+	r.resourceHelper.ImportState(ctx, req, resp)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	var name, folder types.String
+	resp.Diagnostics.Append(resp.State.GetAttribute(ctx, path.Root("name"), &name)...)
+	resp.Diagnostics.Append(resp.State.GetAttribute(ctx, path.Root("folder"), &folder)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	formatted := formatFolderName(folder.ValueString())
+	folder = types.StringNull()
+	if formatted != "" {
+		folder = types.StringValue("/job/" + formatted)
+	}
+	resp.Diagnostics.Append(resp.State.SetAttribute(ctx, path.Root("folder"), folder)...)
+	resp.Diagnostics.Append(resp.State.SetAttribute(ctx, path.Root("id"), generateCredentialID(folder.ValueString(), name.ValueString()))...)
 }
 
 // Update is never planned: every configurable attribute forces replacement,
@@ -255,21 +284,46 @@ func (r *credentialOIDCIDTokenResource) Delete(ctx context.Context, req resource
 
 // copyTo writes the fields Jenkins reports into the model. Jenkins omits an
 // unset issuer or audience, which maps to null rather than an empty string.
-func (c *credentialOIDCIDToken) copyTo(ctx context.Context, cm *jenkins.CredentialsManager, folder string, m *credentialOIDCIDTokenResourceModel) error {
+func (c *credentialOIDCIDToken) copyTo(ctx context.Context, cm *jenkins.CredentialsManager, folder, domain string, m *credentialOIDCIDTokenResourceModel) error {
+	description, err := readCredentialDescription(ctx, cm, folder, domain, c.ID)
+	if err != nil {
+		return err
+	}
 	m.Scope = types.StringValue(c.Scope)
-	m.Description = types.StringValue(c.Description)
+	m.Description = types.StringValue(description)
 	m.Issuer = stringOrNull(c.Issuer)
 	m.Audience = stringOrNull(c.Audience)
 
 	issuer := c.Issuer
 	if issuer == "" {
-		var err error
 		if issuer, err = readOIDCIssuer(ctx, cm, folder); err != nil {
 			return err
 		}
 	}
 	m.EffectiveIssuer = types.StringValue(issuer)
 	return nil
+}
+
+// readCredentialDescription reads a credential's description from the JSON API.
+// Jenkins serves config.xml without a charset, so text outside ISO-8859-1
+// arrives there as question marks. The other attributes are not in the JSON
+// API; issuer and audience are URIs and names, so config.xml is kept for them.
+func readCredentialDescription(ctx context.Context, cm *jenkins.CredentialsManager, folder, domain, name string) (string, error) {
+	client := jenkinsAdapter{Jenkins: cm.J}
+	endpoint := oidcIDTokenCredentialEndpoint(folder, domain) + "/credential/" + url.PathEscape(name) + "/api/json"
+	body, err := client.getConfigFilePage(ctx, endpoint, url.Values{"tree": {"description"}})
+	if err != nil {
+		return "", fmt.Errorf("cannot read the credential description from Jenkins: %w", err)
+	}
+	defer func() { _ = body.Close() }()
+
+	var credential struct {
+		Description string `json:"description"`
+	}
+	if err := json.NewDecoder(body).Decode(&credential); err != nil {
+		return "", fmt.Errorf("cannot parse the Jenkins credential description: %w", err)
+	}
+	return credential.Description, nil
 }
 
 // readOIDCIssuer returns the issuer URI Jenkins uses for credentials in the
