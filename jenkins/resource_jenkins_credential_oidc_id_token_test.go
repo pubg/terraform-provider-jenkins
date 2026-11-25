@@ -66,8 +66,6 @@ func TestAccJenkinsCredentialOIDCIDToken_basic(t *testing.T) {
 				ImportState:       true,
 				ImportStateId:     "_/test-oidc-id-token",
 				ImportStateVerify: true,
-				// The shared credential import sets an empty folder, not null.
-				ImportStateVerifyIgnore: []string{"folder"},
 			},
 			{
 				// Jenkins cannot change the credential without a new signing
@@ -184,6 +182,36 @@ func TestAccJenkinsCredentialOIDCIDToken_folderIssuer(t *testing.T) {
 	})
 }
 
+// Jenkins serves config.xml without a charset, which turns text outside
+// ISO-8859-1 into question marks. A description read that way never matches
+// the configuration, and the difference forces a replacement.
+func TestAccJenkinsCredentialOIDCIDToken_unicodeDescription(t *testing.T) {
+	const name = "jenkins_credential_oidc_id_token.foo"
+	const config = `
+	resource jenkins_credential_oidc_id_token foo {
+	  name        = "test-oidc-id-token-unicode"
+	  description = "인증용 ID 토큰"
+	}`
+
+	resource.Test(t, resource.TestCase{
+		PreCheck:                 func() { testAccPreCheck(t) },
+		ProtoV6ProviderFactories: testAccProviders,
+		CheckDestroy:             testAccCheckJenkinsCredentialOIDCIDTokenDestroy,
+		Steps: []resource.TestStep{
+			{
+				Config: config,
+				Check:  resource.TestCheckResourceAttr(name, "description", "인증용 ID 토큰"),
+			},
+			{
+				Config: config,
+				ConfigPlanChecks: resource.ConfigPlanChecks{
+					PreApply: []plancheck.PlanCheck{plancheck.ExpectEmptyPlan()},
+				},
+			},
+		},
+	})
+}
+
 // The credentials form accepts a duplicate ID without reporting it, which would
 // let Terraform adopt a credential it did not create.
 func TestAccJenkinsCredentialOIDCIDToken_duplicate(t *testing.T) {
@@ -260,6 +288,8 @@ type oidcIDTokenFakeJenkins struct {
 	// noDiscovery makes the discovery document 404 even when the credential exists.
 	noDiscovery    bool
 	discoveryPaths []string
+	// description is what the JSON API reports; config.xml always says "desc".
+	description string
 }
 
 func (f *oidcIDTokenFakeJenkins) client(t *testing.T) *jenkinsAdapter {
@@ -288,6 +318,17 @@ func (f *oidcIDTokenFakeJenkins) client(t *testing.T) *jenkinsAdapter {
 			}
 			w.Header().Set("Content-Type", "application/json")
 			_, _ = io.WriteString(w, `{"issuer":"https://jenkins.example.com`+strings.TrimSuffix(r.URL.Path, "/.well-known/openid-configuration")+`"}`)
+		case strings.HasSuffix(r.URL.Path, "/api/json") && strings.Contains(r.URL.Path, "/credential/"):
+			if !f.exists {
+				w.WriteHeader(http.StatusNotFound)
+				return
+			}
+			description := f.description
+			if description == "" {
+				description = "desc"
+			}
+			w.Header().Set("Content-Type", "application/json;charset=utf-8")
+			_ = json.NewEncoder(w).Encode(map[string]string{"description": description})
 		case strings.Contains(r.URL.Path, "config.xml") && f.exists:
 			w.Header().Set("Content-Type", "application/xml")
 			_, _ = io.WriteString(w, `<io.jenkins.plugins.oidc__provider.IdTokenStringCredentials plugin="oidc-provider@1">
@@ -474,6 +515,22 @@ func TestCredentialOIDCIDToken_ReadUpdateDelete(t *testing.T) {
 		}
 	})
 
+	t.Run("read takes the description from the JSON API", func(t *testing.T) {
+		r, s := oidcIDTokenTestResource((&oidcIDTokenFakeJenkins{exists: true, description: "인증용 ID 토큰"}).client(t))
+		st := tfsdk.State{Schema: s}
+		st.Set(ctx, model)
+		resp := fwresource.ReadResponse{State: tfsdk.State{Schema: s}}
+		r.Read(ctx, fwresource.ReadRequest{State: st}, &resp)
+		if resp.Diagnostics.HasError() {
+			t.Fatalf("Read: %v", resp.Diagnostics)
+		}
+		var got credentialOIDCIDTokenResourceModel
+		resp.State.Get(ctx, &got)
+		if got, want := got.Description.ValueString(), "인증용 ID 토큰"; got != want {
+			t.Errorf("description = %q, want %q", got, want)
+		}
+	})
+
 	t.Run("read drops a credential that is gone", func(t *testing.T) {
 		r, s := oidcIDTokenTestResource((&oidcIDTokenFakeJenkins{}).client(t))
 		st := tfsdk.State{Schema: s}
@@ -517,4 +574,40 @@ func TestCredentialOIDCIDToken_ReadUpdateDelete(t *testing.T) {
 			t.Errorf("POST count = %d, want 1", len(fake.posts))
 		}
 	})
+}
+
+// An imported credential has to plan as unchanged: any difference forces a
+// replacement, which makes Jenkins generate a new signing key.
+func TestCredentialOIDCIDToken_ImportState(t *testing.T) {
+	ctx := context.Background()
+	r, s := oidcIDTokenTestResource(nil)
+
+	tests := []struct {
+		id         string
+		wantFolder types.String
+		wantID     string
+	}{
+		{"_/tok", types.StringNull(), "/tok"},
+		{"team/sub/_/tok", types.StringValue("/job/team/job/sub"), "/job/team/job/sub/tok"},
+		{"/job/team/job/sub/_/tok", types.StringValue("/job/team/job/sub"), "/job/team/job/sub/tok"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.id, func(t *testing.T) {
+			resp := fwresource.ImportStateResponse{State: tfsdk.State{Schema: s, Raw: covMNull(ctx, s)}}
+			r.ImportState(ctx, fwresource.ImportStateRequest{ID: tt.id}, &resp)
+			if resp.Diagnostics.HasError() {
+				t.Fatalf("ImportState: %v", resp.Diagnostics)
+			}
+			var got credentialOIDCIDTokenResourceModel
+			if d := resp.State.Get(ctx, &got); d.HasError() {
+				t.Fatalf("State.Get: %v", d)
+			}
+			if !got.Folder.Equal(tt.wantFolder) {
+				t.Errorf("folder = %v, want %v", got.Folder, tt.wantFolder)
+			}
+			if got.ID.ValueString() != tt.wantID || got.Name.ValueString() != "tok" || got.Domain.ValueString() != "_" {
+				t.Errorf("state = %+v", got)
+			}
+		})
+	}
 }

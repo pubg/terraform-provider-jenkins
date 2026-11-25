@@ -48,3 +48,17 @@ resource "jenkins_credential_oidc_id_token" "example" {
 
 - `effective_issuer` (String) The issuer (`iss`) claim that tokens from this credential carry: `issuer` when it is set, otherwise the issuer URI Jenkins reports for the credential's store. It is built from the Jenkins URL configured in Jenkins, which may differ from the provider's `server_url`. Register this value with the service that verifies the tokens.
 - `id` (String) The full canonical job path, e.g. `/job/job-name`
+
+## Import
+
+Import is supported using the following syntax:
+
+The [`terraform import` command](https://developer.hashicorp.com/terraform/cli/commands/import) can be used, for example:
+
+```shell
+# Import a global credential as "<domain>/<name>". The global domain is "_".
+terraform import jenkins_credential_oidc_id_token.example _/example-id-token
+
+# Import a folder credential as "<folder>/<domain>/<name>".
+terraform import jenkins_credential_oidc_id_token.example /job/team/_/example-id-token
+```
