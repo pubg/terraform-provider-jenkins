@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.8.0](https://github.com/pubg/terraform-provider-jenkins/compare/v1.7.0...v1.8.0) (2026-11-25)
+
+### Features
+
+* Manage how long an idle agent Pod is kept and which builds may use it with `idle_minutes` and `node_usage_mode` on `jenkins_kubernetes_pod_template`. Both default to what the Kubernetes plugin stores when they are unset, so existing Pod Templates plan no change. ([#16](https://github.com/pubg/terraform-provider-jenkins/pull/16))
+
 ## [1.7.0](https://github.com/pubg/terraform-provider-jenkins/compare/v1.6.1...v1.7.0) (2026-11-25)
 
 ### Features
