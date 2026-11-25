@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.6.0](https://github.com/pubg/terraform-provider-jenkins/compare/v1.5.1...v1.6.0) (2026-11-25)
+
+### Features
+
+* Manage OpenID Connect id token credentials with `jenkins_credential_oidc_id_token`. Jenkins generates and keeps the signing key, and `effective_issuer` reports the issuer the tokens carry. ([#10](https://github.com/pubg/terraform-provider-jenkins/pull/10))
+
 ## [1.5.1](https://github.com/pubg/terraform-provider-jenkins/compare/v1.5.0...v1.5.1) (2026-11-19)
 
 ### Bug Fixes
