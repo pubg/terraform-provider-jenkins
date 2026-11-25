@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.7.0](https://github.com/pubg/terraform-provider-jenkins/compare/v1.6.1...v1.7.0) (2026-11-25)
+
+### Features
+
+* Manage folder-level Pipeline libraries with `pipeline_libraries` on `jenkins_folder`. Each library is retrieved from a Git repository. Omit the attribute to leave the folder's libraries unmanaged, or set it to an empty list to remove them. ([#14](https://github.com/pubg/terraform-provider-jenkins/pull/14))
+
 ## [1.6.1](https://github.com/pubg/terraform-provider-jenkins/compare/v1.6.0...v1.6.1) (2026-11-25)
 
 ### Bug Fixes
