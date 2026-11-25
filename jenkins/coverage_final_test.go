@@ -87,6 +87,7 @@ func TestCovG_FolderRichSecurity(t *testing.T) {
 	r.Schema(ctx, resource.SchemaRequest{}, &sr)
 	model := &folderResourceModel{
 		PermittedKubernetesClouds: types.SetNull(types.StringType),
+		PipelineLibraries:         types.ListNull(folderPipelineLibraryObjectType),
 		Name:                      types.StringValue("f"), Folder: types.StringNull(),
 		DisplayName: types.StringValue("Team F"), Description: types.StringValue("d"),
 		Security: types.SetNull(folderSecurityObjectType), Template: types.StringNull(),
@@ -117,6 +118,7 @@ func TestCovG_FolderWithSecurity(t *testing.T) {
 	})
 	model := &folderResourceModel{
 		PermittedKubernetesClouds: types.SetNull(types.StringType),
+		PipelineLibraries:         types.ListNull(folderPipelineLibraryObjectType),
 		Name:                      types.StringValue("f"), Folder: types.StringNull(),
 		DisplayName: types.StringValue("Team F"), Description: types.StringValue("d"),
 		Security: types.SetValueMust(folderSecurityObjectType, []attr.Value{secObj}), Template: types.StringNull(),

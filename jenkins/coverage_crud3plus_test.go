@@ -105,6 +105,7 @@ func TestCovK_FolderUpdate(t *testing.T) {
 	ctx := context.Background()
 	model := &folderResourceModel{
 		PermittedKubernetesClouds: types.SetNull(types.StringType),
+		PipelineLibraries:         types.ListNull(folderPipelineLibraryObjectType),
 		Name:                      types.StringValue("f"), Folder: types.StringNull(),
 		DisplayName: types.StringValue(""), Description: types.StringValue("d"),
 		Security: types.SetNull(folderSecurityObjectType), Template: types.StringNull(),

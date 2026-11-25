@@ -40,12 +40,30 @@ resource "jenkins_folder" "squad" {
 - `display_name` (String) The name of the folder to display in the UI.
 - `folder` (String) The folder namespace to create this folder in. Nested folders are separated with `/`, e.g. `parent/child`. Cannot be changed after creation, and every parent folder must already exist.
 - `permitted_kubernetes_clouds` (Set of String) Usage-restricted Kubernetes Clouds granted directly to this folder. Omit to preserve the existing grants, or set to an empty set to remove them. Jenkins also grants any Clouds inherited from parent folders.
+- `pipeline_libraries` (Attributes List) Pipeline libraries configured directly on this folder, each retrieved from a Git repository. Omit to leave the folder's libraries unmanaged, or set to an empty list to remove them. Pipelines in this folder and its descendants can load these libraries; they run in the Groovy sandbox. (see [below for nested schema](#nestedatt--pipeline_libraries))
 - `security` (Block Set) The Jenkins project-based security configuration. At most one block may be specified. (see [below for nested schema](#nestedblock--security))
 
 ### Read-Only
 
 - `id` (String) The full canonical folder path, e.g. `/job/folder-name`.
 - `template` (String) The Jenkins-compatible XML template describing the folder, as used to communicate with Jenkins. An existing folder's XML can be retrieved by appending `/config.xml` to its URL.
+
+<a id="nestedatt--pipeline_libraries"></a>
+### Nested Schema for `pipeline_libraries`
+
+Required:
+
+- `git_remote` (String) The URL of the Git repository holding the library.
+- `name` (String) The name pipelines use to load the library, as in `@Library('name')`.
+
+Optional:
+
+- `allow_version_override` (Boolean) Whether a pipeline may select another version, as in `@Library('name@version')`. Defaults to `true`.
+- `default_version` (String) The branch, tag or commit loaded when a pipeline does not select a version.
+- `git_credentials_id` (String) The ID of the credential used to fetch the repository.
+- `implicit` (Boolean) Whether pipelines load the library without an `@Library` annotation. Requires `default_version`. Defaults to `false`.
+- `include_in_changesets` (Boolean) Whether library changes are included in the changesets of the builds that load it. Defaults to `true`.
+
 
 <a id="nestedblock--security"></a>
 ### Nested Schema for `security`
@@ -90,6 +108,29 @@ resource "jenkins_folder" "team" {
 ```
 
 Omit the attribute to preserve the folder's direct grants. Use `[]` to remove them. Parent grants are inherited independently of this attribute.
+
+## Pipeline libraries
+
+~> `pipeline_libraries` needs the [Pipeline: Groovy Libraries Plugin](https://plugins.jenkins.io/pipeline-groovy-lib/) and the [Git Plugin](https://plugins.jenkins.io/git/) installed.
+
+Set `pipeline_libraries` to the [folder-level Pipeline libraries](https://www.jenkins.io/doc/book/pipeline/shared-libraries/#folder-level-shared-libraries) pipelines in this folder and its descendants may load. Each library is retrieved from a Git repository through a Git SCM source that discovers branches. Folder-level libraries run in the Groovy sandbox.
+
+```hcl
+resource "jenkins_folder" "team" {
+  name = "platform-team"
+
+  pipeline_libraries = [
+    {
+      name               = "team-steps"
+      default_version    = "main"
+      git_remote         = "https://git.example.com/platform/team-steps.git"
+      git_credentials_id = "git-token"
+    },
+  ]
+}
+```
+
+Omit the attribute to leave the folder's libraries unmanaged: Terraform neither reads nor changes them, and removing the attribute from a configuration leaves the libraries on the folder. Use `[]` to remove them. A configured list replaces every library on the folder, including one with a retriever other than a Git SCM source, which is reported with a null `git_remote`.
 
 ## Import
 

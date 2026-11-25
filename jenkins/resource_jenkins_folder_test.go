@@ -3,6 +3,7 @@ package jenkins
 import (
 	"context"
 	"fmt"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -72,6 +73,97 @@ resource "jenkins_folder" "team" {
 			{
 				Config: config("Remove the direct grants", "permitted_kubernetes_clouds = []"),
 				Check:  resource.TestCheckResourceAttr("jenkins_folder.team", "permitted_kubernetes_clouds.#", "0"),
+			},
+		},
+	})
+}
+
+func TestAccJenkinsFolder_pipelineLibraries(t *testing.T) {
+	name := "tf-acc-test-" + acctest.RandStringFromCharSet(10, acctest.CharSetAlphaNum)
+	config := func(description, libraries string) string {
+		return fmt.Sprintf(`
+resource "jenkins_folder" "team" {
+  name        = %q
+  description = %q
+  %s
+}`, name, description, libraries)
+	}
+	const twoLibraries = `pipeline_libraries = [
+    {
+      name               = "team-steps"
+      default_version    = "main"
+      git_remote         = "https://example.com/team/steps.git"
+      git_credentials_id = "git-token"
+    },
+    {
+      name                   = "team-defaults"
+      default_version        = "stable"
+      implicit               = true
+      allow_version_override = false
+      include_in_changesets  = false
+      git_remote             = "https://example.com/team/defaults.git"
+    },
+  ]`
+	checkLibraries := resource.ComposeTestCheckFunc(
+		resource.TestCheckResourceAttr("jenkins_folder.team", "pipeline_libraries.#", "2"),
+		resource.TestCheckResourceAttr("jenkins_folder.team", "pipeline_libraries.0.name", "team-steps"),
+		resource.TestCheckResourceAttr("jenkins_folder.team", "pipeline_libraries.0.default_version", "main"),
+		// The first library omits the flags, so Jenkins holds the defaults
+		// and state keeps them unset.
+		resource.TestCheckNoResourceAttr("jenkins_folder.team", "pipeline_libraries.0.implicit"),
+		resource.TestCheckNoResourceAttr("jenkins_folder.team", "pipeline_libraries.0.allow_version_override"),
+		resource.TestCheckNoResourceAttr("jenkins_folder.team", "pipeline_libraries.0.include_in_changesets"),
+		resource.TestCheckResourceAttr("jenkins_folder.team", "pipeline_libraries.0.git_remote", "https://example.com/team/steps.git"),
+		resource.TestCheckResourceAttr("jenkins_folder.team", "pipeline_libraries.0.git_credentials_id", "git-token"),
+		resource.TestCheckResourceAttr("jenkins_folder.team", "pipeline_libraries.1.name", "team-defaults"),
+		resource.TestCheckResourceAttr("jenkins_folder.team", "pipeline_libraries.1.implicit", "true"),
+		resource.TestCheckResourceAttr("jenkins_folder.team", "pipeline_libraries.1.allow_version_override", "false"),
+		resource.TestCheckResourceAttr("jenkins_folder.team", "pipeline_libraries.1.include_in_changesets", "false"),
+		resource.TestCheckNoResourceAttr("jenkins_folder.team", "pipeline_libraries.1.git_credentials_id"),
+		// Jenkins itself has to have accepted the libraries, not just stored
+		// the XML it was sent.
+		resource.TestMatchResourceAttr("jenkins_folder.team", "template", regexp.MustCompile(`jenkins\.plugins\.git\.GitSCMSource`)),
+	)
+
+	resource.Test(t, resource.TestCase{
+		PreCheck:                 func() { testAccPreCheck(t) },
+		ProtoV6ProviderFactories: testAccProviders,
+		CheckDestroy:             testAccCheckJenkinsFolderDestroy,
+		Steps: []resource.TestStep{
+			{
+				Config: config("Configure two libraries", twoLibraries),
+				Check:  checkLibraries,
+			},
+			{
+				// Re-applying the same configuration must plan no change.
+				Config: config("Configure two libraries", twoLibraries),
+				Check:  checkLibraries,
+			},
+			{
+				// With the attribute omitted the libraries are unmanaged: they
+				// stay on the folder and leave state.
+				Config: config("Leave the libraries alone", ""),
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckNoResourceAttr("jenkins_folder.team", "pipeline_libraries.#"),
+					resource.TestMatchResourceAttr("jenkins_folder.team", "template", regexp.MustCompile(`<name>team-steps</name>[\s\S]*<name>team-defaults</name>`)),
+				),
+			},
+			{
+				// Taking the libraries back under management plans cleanly.
+				Config: config("Manage the libraries again", twoLibraries),
+				Check:  checkLibraries,
+			},
+			{
+				Config: config("Remove the libraries", "pipeline_libraries = []"),
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttr("jenkins_folder.team", "pipeline_libraries.#", "0"),
+					resource.TestCheckResourceAttrWith("jenkins_folder.team", "template", func(template string) error {
+						if strings.Contains(template, folderLibrariesProperty) {
+							return fmt.Errorf("the folder still carries %s:\n%s", folderLibrariesProperty, template)
+						}
+						return nil
+					}),
+				),
 			},
 		},
 	})
