@@ -119,4 +119,12 @@ run "credentials" {
     condition     = jenkins_credential_github_app.global.app_id == "12345"
     error_message = "${jenkins_credential_github_app.global.app_id} did not contain expected \"12345\" value"
   }
+  assert {
+    condition     = jenkins_credential_oidc_id_token.global.audience == "https://service.example.com"
+    error_message = "${jenkins_credential_oidc_id_token.global.audience} did not contain expected audience"
+  }
+  assert {
+    condition     = jenkins_credential_oidc_id_token.folder.id == "${jenkins_folder.example.id}/folder-oidc-id-token"
+    error_message = "${jenkins_credential_oidc_id_token.folder.id} did not contain expected folder credential ID"
+  }
 }

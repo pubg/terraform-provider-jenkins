@@ -16,6 +16,7 @@ func TestAllResourcesMetadata(t *testing.T) {
 		{"jenkins_credential_aws", newCredentialAwsResource},
 		{"jenkins_credential_azure_service_principal", newCredentialAzureServicePrincipalResource},
 		{"jenkins_credential_github_app", newCredentialGitHubAppResource},
+		{"jenkins_credential_oidc_id_token", newCredentialOIDCIDTokenResource},
 		{"jenkins_credential_secret_file", newCredentialSecretFileResource},
 		{"jenkins_credential_secret_text", newCredentialSecretTextResource},
 		{"jenkins_credential_ssh", newCredentialSSHResource},
@@ -59,6 +60,11 @@ func TestAllResourcesSchema(t *testing.T) {
 			"jenkins_credential_github_app",
 			newCredentialGitHubAppResource,
 			[]string{"id", "name", "folder", "description", "domain", "scope", "app_id", "private_key"},
+		},
+		{
+			"jenkins_credential_oidc_id_token",
+			newCredentialOIDCIDTokenResource,
+			[]string{"id", "name", "folder", "description", "domain", "scope", "issuer", "audience", "effective_issuer"},
 		},
 		{
 			"jenkins_credential_secret_file",
@@ -125,6 +131,7 @@ func TestAllResourcesSchemaBaseTypes(t *testing.T) {
 		{"jenkins_credential_aws", newCredentialAwsResource},
 		{"jenkins_credential_azure_service_principal", newCredentialAzureServicePrincipalResource},
 		{"jenkins_credential_github_app", newCredentialGitHubAppResource},
+		{"jenkins_credential_oidc_id_token", newCredentialOIDCIDTokenResource},
 		{"jenkins_credential_secret_file", newCredentialSecretFileResource},
 		{"jenkins_credential_secret_text", newCredentialSecretTextResource},
 		{"jenkins_credential_ssh", newCredentialSSHResource},
