@@ -62,19 +62,29 @@ resource "jenkins_kubernetes_pod_template" "test" {
 				resource.TestCheckResourceAttr("jenkins_kubernetes_pod_template.test", "env_vars.OS_VERSION", ""),
 				resource.TestCheckResourceAttr("jenkins_kubernetes_pod_template.test", "env_vars.ARCH", "amd64"),
 				resource.TestCheckResourceAttr("jenkins_kubernetes_pod_template.test", "agent_container", "agent"),
+				resource.TestCheckResourceAttr("jenkins_kubernetes_pod_template.test", "idle_minutes", ""),
+				resource.TestCheckResourceAttr("jenkins_kubernetes_pod_template.test", "node_usage_mode", "EXCLUSIVE"),
 				resource.TestCheckResourceAttr("jenkins_kubernetes_pod_template.test", "volumes.%", "8"),
 				resource.TestCheckResourceAttr("jenkins_kubernetes_pod_template.test", "annotations.example.org/project", "test"),
 			)},
 			{Config: config("namespace-b", "karpenter.sh/nodepool=pool-b", `env_vars = { OS_VERSION = "2022" }
     annotations = { "example.org/project" = "updated" }
+    idle_minutes = "5"
+    node_usage_mode = "NORMAL"
     volumes = { "/scratch" = { persistent_volume_claim = { claim_name = "replacement" } } }`), Check: resource.ComposeTestCheckFunc(
+				resource.TestCheckResourceAttr("jenkins_kubernetes_pod_template.test", "idle_minutes", "5"),
+				resource.TestCheckResourceAttr("jenkins_kubernetes_pod_template.test", "node_usage_mode", "NORMAL"),
 				resource.TestCheckResourceAttr("jenkins_kubernetes_pod_template.test", "env_vars.%", "1"),
 				resource.TestCheckResourceAttr("jenkins_kubernetes_pod_template.test", "volumes.%", "1"),
 				resource.TestCheckResourceAttr("jenkins_kubernetes_pod_template.test", "volumes./scratch.persistent_volume_claim.claim_name", "replacement"),
 				resource.TestCheckResourceAttr("jenkins_kubernetes_pod_template.test", "annotations.example.org/project", "updated"),
 				resource.TestCheckResourceAttr("jenkins_kubernetes_pod_template.test", "env_vars.OS_VERSION", "2022"),
 			)},
-			{Config: config("namespace-b", "karpenter.sh/nodepool=pool-b", ""), Check: resource.TestCheckResourceAttr("jenkins_kubernetes_pod_template.test", "env_vars.%", "0")},
+			{Config: config("namespace-b", "karpenter.sh/nodepool=pool-b", ""), Check: resource.ComposeTestCheckFunc(
+				resource.TestCheckResourceAttr("jenkins_kubernetes_pod_template.test", "env_vars.%", "0"),
+				resource.TestCheckResourceAttr("jenkins_kubernetes_pod_template.test", "idle_minutes", ""),
+				resource.TestCheckResourceAttr("jenkins_kubernetes_pod_template.test", "node_usage_mode", "EXCLUSIVE"),
+			)},
 		},
 	})
 }

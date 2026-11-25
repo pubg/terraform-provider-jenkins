@@ -18,6 +18,9 @@ resource "jenkins_kubernetes_pod_template" "linux" {
   name            = "linux-amd64"
   service_account = "jenkins-agent"
   node_selector   = "kubernetes.io/os=linux,kubernetes.io/arch=amd64"
+  # Keep an idle agent for ten minutes and let builds without a label use it.
+  idle_minutes    = "10"
+  node_usage_mode = "NORMAL"
   env_vars = {
     OS         = "linux"
     OS_VERSION = ""
@@ -49,10 +52,12 @@ resource "jenkins_kubernetes_pod_template" "linux" {
 - `agent_container` (String) Name of the container that runs the Jenkins agent. Omit for the plugin default.
 - `annotations` (Map of String) Kubernetes annotations added to agent Pods.
 - `env_vars` (Map of String) Plain environment variables applied to all containers in the Pod Template. Container-specific values take precedence. Use Kubernetes Secrets for credentials.
+- `idle_minutes` (String) Minutes to keep an idle agent Pod for reuse, as a positive integer string. Omit to delete the Pod when its build ends.
 - `inherit_from` (String) Space-separated names of templates to inherit.
 - `label` (String) Jenkins agent label.
 - `namespace` (String) Kubernetes namespace for the agent Pod. Omit to use the Cloud namespace.
 - `node_selector` (String) Comma-separated Kubernetes node selectors in key=value form.
+- `node_usage_mode` (String) Which builds may run on the agent. `EXCLUSIVE` accepts only builds whose label expression matches the agent. `NORMAL` also accepts builds that request no label. Defaults to `EXCLUSIVE`.
 - `service_account` (String) Kubernetes service account for the Pod.
 - `show_raw_yaml` (Boolean) Print the generated Pod manifest in build logs.
 - `volumes` (Attributes Map) Agent Pod volumes keyed by mount path. Choose one source per mount. Use generic_ephemeral for new dynamically provisioned claims. (see [below for nested schema](#nestedatt--volumes))
