@@ -44,6 +44,13 @@ run "jobs" {
     condition     = jenkins_folder.example_subfolder.permitted_kubernetes_clouds == toset(["example-cloud"])
     error_message = "The subfolder did not retain its Kubernetes Cloud grant"
   }
+  assert {
+    condition = (
+      jenkins_folder.example_subfolder.pipeline_libraries[0].name == "example-library" &&
+      strcontains(data.jenkins_folder.example_subfolder.template, "<name>example-library</name>")
+    )
+    error_message = "The subfolder did not retain its Pipeline library"
+  }
   # The jenkins_job resource stores the practitioner's configured template,
   # while the data source returns Jenkins' re-serialized config.xml; these are
   # semantically but not textually equal, so assert the data source read a real

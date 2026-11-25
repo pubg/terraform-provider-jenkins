@@ -22,6 +22,14 @@ resource "jenkins_folder" "example_subfolder" {
   folder                      = jenkins_folder.example.id
   description                 = "A sample subfolder"
   permitted_kubernetes_clouds = ["example-cloud"]
+
+  pipeline_libraries = [
+    {
+      name            = "example-library"
+      default_version = "main"
+      git_remote      = "https://git.example.com/example/library.git"
+    },
+  ]
 }
 
 data "jenkins_folder" "example_subfolder" {
