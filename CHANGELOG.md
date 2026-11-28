@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.8.1](https://github.com/pubg/terraform-provider-jenkins/compare/v1.8.0...v1.8.1) (2026-11-28)
+
+### Notes
+
+* The provider is unchanged from 1.8.0. This release is the first one published by pushing a version tag, following HashiCorp's provider scaffolding, instead of through a release-please Release PR ([#18](https://github.com/pubg/terraform-provider-jenkins/pull/18)).
+
 ## [1.8.0](https://github.com/pubg/terraform-provider-jenkins/compare/v1.7.0...v1.8.0) (2026-11-25)
 
 ### Features
