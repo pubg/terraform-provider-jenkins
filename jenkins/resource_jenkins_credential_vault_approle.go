@@ -68,6 +68,8 @@ func vaultAppRoleCredentialSpec() credentialSpec[credentialVaultAppRoleResourceM
 			hasWriteOnly: true,
 			plainValue:   func(m *credentialVaultAppRoleResourceModel) types.String { return m.SecretID },
 			woVersion:    func(m *credentialVaultAppRoleResourceModel) types.String { return m.SecretIDWoVersion },
+			// An unchanged value must be re-sent encrypted, or Jenkins stores an empty one.
+			preserve: preserveEncryptedSecret("secretId", "Vault AppRole secret ID"),
 		}},
 		build: func(m *credentialVaultAppRoleResourceModel, secrets map[string]string) interface{} {
 			cred := &VaultAppRoleCredentials{

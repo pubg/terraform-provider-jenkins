@@ -101,6 +101,8 @@ func azureServicePrincipalCredentialSpec() credentialSpec[credentialAzureService
 			hasWriteOnly: true,
 			plainValue:   func(m *credentialAzureServicePrincipalResourceModel) types.String { return m.ClientSecret },
 			woVersion:    func(m *credentialAzureServicePrincipalResourceModel) types.String { return m.ClientSecretWoVersion },
+			// An unchanged value must be re-sent encrypted, or Jenkins stores an empty one.
+			preserve: preserveEncryptedSecret("clientSecret", "Azure client secret"),
 		}},
 		build: func(m *credentialAzureServicePrincipalResourceModel, secrets map[string]string) interface{} {
 			cred := &AzureServicePrincipalCredentials{

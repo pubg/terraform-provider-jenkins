@@ -19,6 +19,20 @@ import (
 // are not behind the mockable interface — are covered without a refactor. The
 // server answers the CSRF-crumb GET with JSON, credential POSTs with 200, and a
 // config.xml GET with the supplied credential XML for read-back.
+// covCredUpdateForm is the credential update form an update reads to re-send
+// the encrypted value of each secret it leaves unchanged. It carries one
+// control for every secret field name the credential resources preserve.
+const covCredUpdateForm = `<form action="updateSubmit">` +
+	`<input type="hidden" name="_.secret" value="{c2VjcmV0}">` +
+	`<input type="hidden" name="_.password" value="{cGFzc3dvcmQ=}">` +
+	`<input type="hidden" name="_.passphrase" value="{cGFzc3BocmFzZQ==}">` +
+	`<input type="hidden" name="_.secretKey" value="{c2VjcmV0S2V5}">` +
+	`<input type="hidden" name="_.clientSecret" value="{Y2xpZW50U2VjcmV0}">` +
+	`<input type="hidden" name="secretId" value="{c2VjcmV0SWQ=}">` +
+	`<input type="hidden" name="_.token" value="{dG9rZW4=}">` +
+	`<textarea name="_.privateKey">{cHJpdmF0ZUtleQ==}</textarea>` +
+	`</form>`
+
 func covCredClient(t *testing.T, credXML string) *jenkinsAdapter {
 	t.Helper()
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -28,6 +42,8 @@ func covCredClient(t *testing.T, credXML string) *jenkinsAdapter {
 			_, _ = io.WriteString(w, `{"crumb":"abc","crumbRequestField":"Jenkins-Crumb"}`)
 		case r.Method == http.MethodPost:
 			w.WriteHeader(http.StatusOK)
+		case strings.HasSuffix(r.URL.Path, "/updateDialog"):
+			_, _ = io.WriteString(w, covCredUpdateForm)
 		case strings.Contains(r.URL.Path, "config.xml"):
 			w.Header().Set("Content-Type", "application/xml")
 			_, _ = io.WriteString(w, credXML)
@@ -95,6 +111,8 @@ func covCredClientCode(t *testing.T, postCode, getCode int) *jenkinsAdapter {
 			_, _ = io.WriteString(w, `{"crumb":"abc","crumbRequestField":"Jenkins-Crumb"}`)
 		case r.Method == http.MethodPost:
 			w.WriteHeader(postCode)
+		case getCode == http.StatusOK && strings.HasSuffix(r.URL.Path, "/updateDialog"):
+			_, _ = io.WriteString(w, covCredUpdateForm)
 		default: // any GET (config.xml read-back, credential list, etc.)
 			w.WriteHeader(getCode)
 		}

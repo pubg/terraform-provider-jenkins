@@ -52,6 +52,8 @@ func usernameCredentialSpec() credentialSpec[credentialUsernameResourceModel] {
 			hasWriteOnly: true,
 			plainValue:   func(m *credentialUsernameResourceModel) types.String { return m.Password },
 			woVersion:    func(m *credentialUsernameResourceModel) types.String { return m.PasswordWoVersion },
+			// An unchanged value must be re-sent encrypted, or Jenkins stores an empty one.
+			preserve: preserveEncryptedSecret("password", "password"),
 		}},
 		build: func(m *credentialUsernameResourceModel, secrets map[string]string) interface{} {
 			cred := &jenkins.UsernameCredentials{

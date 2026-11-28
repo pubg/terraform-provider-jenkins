@@ -67,6 +67,8 @@ func awsCredentialSpec() credentialSpec[credentialAwsResourceModel] {
 			hasWriteOnly: true,
 			plainValue:   func(m *credentialAwsResourceModel) types.String { return m.SecretKey },
 			woVersion:    func(m *credentialAwsResourceModel) types.String { return m.SecretKeyWoVersion },
+			// An unchanged value must be re-sent encrypted, or Jenkins stores an empty one.
+			preserve: preserveEncryptedSecret("secretKey", "AWS secret key"),
 		}},
 		build: func(m *credentialAwsResourceModel, secrets map[string]string) interface{} {
 			cred := &credentialAws{
