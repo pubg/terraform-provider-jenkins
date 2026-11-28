@@ -6,6 +6,7 @@ description: |-
   Manages a GitHub App credential within Jenkins. This credential may then be referenced within jobs that are created.
   ~> The "private_key" property may leave a plain-text private key in your state file. If using the property to manage the private key in Terraform, ensure that your state file is properly secured and encrypted at rest.
   ~> The Jenkins installation that uses this resource is expected to have the GitHub Branch Source Plugin https://plugins.jenkins.io/github-branch-source/ installed.
+  The repository access strategy and the default permissions strategy limit the installation access tokens Jenkins generates in untrusted contexts, such as a Pipeline using the credential through withCredentials. See the plugin's GitHub App guide https://github.com/jenkinsci/github-branch-source-plugin/blob/master/docs/github-app.adoc for how each strategy behaves.
 ---
 
 # jenkins_credential_github_app (Resource)
@@ -16,6 +17,8 @@ Manages a GitHub App credential within Jenkins. This credential may then be refe
 
 ~> The Jenkins installation that uses this resource is expected to have the [GitHub Branch Source Plugin](https://plugins.jenkins.io/github-branch-source/) installed.
 
+The repository access strategy and the default permissions strategy limit the installation access tokens Jenkins generates in untrusted contexts, such as a Pipeline using the credential through `withCredentials`. See the plugin's [GitHub App guide](https://github.com/jenkinsci/github-branch-source-plugin/blob/master/docs/github-app.adoc) for how each strategy behaves.
+
 ## Example Usage
 
 ```terraform
@@ -23,6 +26,23 @@ resource "jenkins_credential_github_app" "example" {
   name        = "my-github-app"
   app_id      = "123456"
   private_key = file("/path/to/github-app.pem")
+}
+
+# A folder-scoped credential for GitHub Enterprise Server whose tokens can only
+# read two repositories of one organization.
+resource "jenkins_credential_github_app" "team" {
+  name   = "github-app-team"
+  folder = jenkins_folder.team.id
+
+  app_id                 = "123456"
+  private_key_wo         = file("/path/to/github-app.pem")
+  private_key_wo_version = "1"
+
+  api_uri                      = "https://github.example.com/api/v3"
+  repository_access_strategy   = "specificRepositories"
+  owner                        = "my-org"
+  repositories                 = ["service-a", "service-b"]
+  default_permissions_strategy = "CONTENTS_READ"
 }
 ```
 
@@ -38,12 +58,17 @@ resource "jenkins_credential_github_app" "example" {
 
 > **NOTE**: [Write-only arguments](https://developer.hashicorp.com/terraform/language/resources/ephemeral#write-only-arguments) are supported in Terraform 1.11 and later.
 
+- `api_uri` (String) The GitHub API endpoint, e.g. `https://github.example.com/api/v3` for GitHub Enterprise Server. Leave unset for github.com.
+- `default_permissions_strategy` (String) The permissions of the generated tokens: `INHERIT_ALL` (every permission of the app installation), `CONTENTS_READ`, or `CONTENTS_WRITE`. Defaults to `INHERIT_ALL`.
 - `description` (String) A human readable description of the credentials being stored.
 - `domain` (String) The domain store to place the credentials into. If not set will default to the global credentials store.
 - `folder` (String) The folder namespace to store the resource in. If not set will default to global Jenkins.
-- `private_key` (String, Sensitive) The RSA private key in PKCS#1 PEM format for the GitHub App.
-- `private_key_wo` (String, Sensitive, [Write-only](https://developer.hashicorp.com/terraform/language/resources/ephemeral#write-only-arguments)) The RSA private key in PKCS#1 PEM format for the GitHub App. Write-only: the value is used only during apply and is **never stored in Terraform state or plan**. Requires Terraform >= 1.11, conflicts with `private_key`, and must be paired with `private_key_wo_version`.
+- `owner` (String) The GitHub organization or user whose repositories the tokens can access. Only valid with `specificRepositories`. May be left unset when the app is installed in a single organization.
+- `private_key` (String, Sensitive) The GitHub App private key in PKCS#8 PEM format. GitHub issues keys in PKCS#1; convert one with `openssl pkcs8 -topk8 -nocrypt -in key.pem`.
+- `private_key_wo` (String, Sensitive, [Write-only](https://developer.hashicorp.com/terraform/language/resources/ephemeral#write-only-arguments)) The GitHub App private key in PKCS#8 PEM format. GitHub issues keys in PKCS#1; convert one with `openssl pkcs8 -topk8 -nocrypt -in key.pem`. Write-only: the value is used only during apply and is **never stored in Terraform state or plan**. Requires Terraform >= 1.11, conflicts with `private_key`, and must be paired with `private_key_wo_version`.
 - `private_key_wo_version` (String) Version identifier for `private_key_wo`. Because a write-only value is not stored in state, Terraform cannot detect when it changes; change this value (e.g. after rotating the secret) to have Terraform re-send `private_key_wo` to Jenkins. Required when `private_key_wo` is set.
+- `repositories` (List of String) The repository names (without the owner) the tokens can access. Only valid with `specificRepositories`. An empty list allows every repository of `owner` that the app installation can access.
+- `repository_access_strategy` (String) Which repositories the generated tokens can access: `inferOwner` (all repositories of the owner inferred from the job), `inferRepository` (only the repository inferred from the job), or `specificRepositories` (the `owner` and `repositories` set here). The inference-based strategies only work in Organization Folders and Multibranch Pipelines. Defaults to `specificRepositories`, which with no `owner` and no `repositories` is the plugin's behavior for credentials created before access strategies existed.
 - `scope` (String) The visibility of the credentials to Jenkins agents. This must be set to either "GLOBAL" or "SYSTEM". If not set will default to "GLOBAL".
 
 ### Read-Only
