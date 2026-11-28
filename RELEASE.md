@@ -19,14 +19,11 @@ and resource prefix remain `jenkins` and `jenkins_`.
    | --- | --- | --- |
    | `GPG_PRIVATE_KEY` | Secret | ASCII-armored private release signing key |
    | `PASSPHRASE` | Secret | Passphrase for that key |
-   | `APP_CLIENT_ID` | Secret or variable | Client ID of the release GitHub App; a secret takes precedence |
-   | `APP_PRIVATE_KEY` | Secret | PEM private key for that App |
 
-4. Install the GitHub App on this repository with **Contents: read/write** and
-   **Pull requests: read/write**. Release-please uses its token so its PRs and
-   tags trigger CI and the release workflow. The default `GITHUB_TOKEN` does
-   not trigger those downstream workflows.
-5. After the first signed GitHub release exists, sign in to the Terraform
+   No GitHub App or personal token is needed. `release.yml` publishes with the
+   built-in `GITHUB_TOKEN` (`contents: write`), as HashiCorp's provider
+   scaffolding does.
+4. After the first signed GitHub release exists, sign in to the Terraform
    Registry with access to the `pubg` organization, select **Publish > Provider**,
    and choose this repository. Verify the signing key and repository webhook.
    Later GitHub releases are discovered through the webhook.
@@ -37,22 +34,32 @@ See HashiCorp's [publishing requirements](https://developer.hashicorp.com/terraf
 
 ## Version and release flow
 
-The inherited version baseline remains **1.2.8** in
-`.release-please-manifest.json`. The first PUBG release is **1.3.0** because it
-adds Config File Provider resources. `bootstrap-sha` points at the upstream
-1.2.8 commit, so the first release notes include only subsequent fork changes.
-After the first release, release-please uses the published release as its baseline.
-Do not push inherited upstream tags as PUBG releases.
+Releases follow HashiCorp's
+[provider scaffolding](https://github.com/hashicorp/terraform-provider-scaffolding-framework):
+a maintainer pushes a `vX.Y.Z` tag and `release.yml` publishes it. The first
+PUBG release was **1.3.0**, on top of the upstream 1.2.8 baseline. Do not push
+inherited upstream tags as PUBG releases.
 
-1. Merge a reviewed change to `main` and wait for the `CI` workflow to succeed.
-2. `versioning.yml` uses release-please to open or update a Release PR with the
-   next version and changelog. `feat:` increments minor; `fix:` increments patch;
-   breaking changes increment major.
-3. Review and merge the Release PR when ready to publish. This creates its
-   `vX.Y.Z` tag and GitHub release notes.
-4. `release.yml` builds the provider using GoReleaser, signs its checksums, and
-   uploads the platform ZIPs, manifest, checksums and detached signature.
-5. Check the release assets and Terraform Registry version, then test installation
+1. Merge reviewed changes to `main` and wait for the `CI` workflow to succeed.
+2. Pick the next [SemVer](https://semver.org/) version from the Conventional
+   Commits since the last tag: `feat:` increments minor; `fix:` increments
+   patch; breaking changes (`!` or `BREAKING CHANGE:`) increment major.
+3. Open a pull request titled `chore: release vX.Y.Z` that adds a
+   `## [X.Y.Z](https://github.com/pubg/terraform-provider-jenkins/compare/vPREV...vX.Y.Z) (YYYY-MM-DD)`
+   section to the top of `CHANGELOG.md`, in the existing format, and merge it.
+4. Tag the merged commit on `main` and push the tag:
+
+   ```sh
+   git switch main && git pull --ff-only
+   git tag vX.Y.Z
+   git push origin vX.Y.Z
+   ```
+
+5. `release.yml` builds the provider using GoReleaser, signs its checksums, and
+   creates the GitHub Release with the platform ZIPs, manifest, checksums and
+   detached signature. GoReleaser does not write release notes;
+   `CHANGELOG.md` is the record of changes.
+6. Check the release assets and Terraform Registry version, then test installation
    from a fresh directory without `dev_overrides`:
 
    ```hcl
@@ -90,9 +97,7 @@ The manifest advertises only protocol **6.0**, which this Framework provider
 serves. The ZIP and checksum names remain `terraform-provider-jenkins_*`.
 The release version is embedded in the provider metadata at build time.
 
-If CI fails, fix or rerun it before releasing. If versioning misses a completed
-CI run, use **Actions > Versioning > Run workflow** after confirming `main` is
-green. If signing or asset upload fails, fix the credentials and rerun the
+If CI fails, fix or rerun it before tagging. If signing or asset upload fails, fix the credentials and rerun the
 failed Release job for the same tag before treating the release as complete.
 Do not replace the assets of a version already indexed by the Registry; publish
 a new version instead. Use the Registry's resync action when a completed release

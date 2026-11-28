@@ -86,14 +86,15 @@ schema or template changes) and report what they printed — including failures.
 `main` requires these checks to pass: `Lint`, `Unit Tests`, `Acceptance Tests`,
 `Integration Tests`, `Docs`, `Conventional PR Title`, `CI OK`, `CodeQL (go)`,
 plus one approving review. `CI.md` explains the pipeline, the `changes` gate
-that skips test jobs on docs-only and release PRs, and why `CI OK` exists.
+that skips test jobs on docs-only and changelog PRs, and why `CI OK` exists.
 
 The unit job additionally enforces a 5% total-coverage floor — a guard against
 deleting unit tests wholesale, not a coverage target; this provider gets most of
 its coverage from acceptance tests.
 
 PR titles are enforced as Conventional Commits, because the squash-merge subject
-is what release-please reads. A change that alters an attribute's type or any
-other observable schema detail needs a `!` or a `BREAKING CHANGE:` footer, so
-the release automation cuts a minor rather than a patch — see the v1.2.2 entry
-in `CHANGELOG.md` for what happens otherwise.
+is what the maintainer reads to choose the next version and write
+`CHANGELOG.md` (see `RELEASE.md`). A change that alters an attribute's type or
+any other observable schema detail needs a `!` or a `BREAKING CHANGE:` footer,
+so the release is not cut as a patch — see the v1.2.2 entry in `CHANGELOG.md`
+for what happens otherwise.
