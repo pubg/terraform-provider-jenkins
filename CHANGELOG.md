@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.9.0](https://github.com/pubg/terraform-provider-jenkins/compare/v1.8.1...v1.9.0) (2026-11-28)
+
+### Features
+
+* Manage the GitHub Enterprise Server API endpoint and the access strategies of a GitHub App credential with `api_uri`, `repository_access_strategy`, `owner`, `repositories` and `default_permissions_strategy` on `jenkins_credential_github_app`. The defaults are what the GitHub Branch Source plugin stores for a credential that sets none of them, so existing credentials plan no change. ([#20](https://github.com/pubg/terraform-provider-jenkins/pull/20))
+* Manage the GitLab Branch Source plugin's personal and group access token credentials with `jenkins_credential_gitlab_access_token`. ([#20](https://github.com/pubg/terraform-provider-jenkins/pull/20))
+
+### Bug Fixes
+
+* Keep a credential's stored secret when an update does not change it, such as a description change or a secret in `ignore_changes`. Before, Jenkins stored an empty GitHub App private key, secret text, password, AWS secret key, Azure client secret or Vault AppRole secret ID, and dropped an SSH key's passphrase. ([#20](https://github.com/pubg/terraform-provider-jenkins/pull/20), [#21](https://github.com/pubg/terraform-provider-jenkins/pull/21))
+* Describe the GitHub App private key as PKCS#8, the format the plugin requires, with the `openssl` conversion from the PKCS#1 key GitHub issues. ([#20](https://github.com/pubg/terraform-provider-jenkins/pull/20))
+
 ## [1.8.1](https://github.com/pubg/terraform-provider-jenkins/compare/v1.8.0...v1.8.1) (2026-11-28)
 
 ### Notes
