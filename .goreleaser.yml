@@ -64,7 +64,6 @@ release:
   # If you want to manually examine the release before its live, uncomment this line:
   # draft: true
 changelog:
-  # release-please owns the changelog: it writes CHANGELOG.md and the GitHub
-  # Release notes when the Release PR is merged (see .github/workflows/
-  # versioning.yml and RELEASE.md). GoReleaser must not overwrite them.
+  # CHANGELOG.md is maintained by hand and updated before each release tag
+  # (see RELEASE.md), as in HashiCorp's provider scaffolding.
   disable: true

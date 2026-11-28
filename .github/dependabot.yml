@@ -1,8 +1,8 @@
 version: 2
 updates:
   # Action bumps are CI-only and never touch the shipped provider binary, so
-  # they use a NON-releasing Conventional Commit type (`ci`) and must not cut
-  # a release. `include: scope` yields `ci(deps): ...`.
+  # they use the `ci` type and do not need a CHANGELOG entry.
+  # `include: scope` yields `ci(deps): ...`.
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
@@ -15,12 +15,10 @@ updates:
       gha:
         patterns: ["*"]
 
-  # Go module bumps change the SHIPPED provider binary, so they must land as
-  # a releasing Conventional Commit type. release-please maps `fix:` -> patch,
-  # which opens/refreshes the Release PR and actually ships the dependency.
-  # Dependabot's default `chore(deps):` is NON-releasing, so without this
-  # bumps would sit unreleased until an unrelated fix:/feat: swept them in.
-  # `include: scope` yields `fix(deps): ...`. See RELEASE.md.
+  # Go module bumps change the SHIPPED provider binary, so they land as
+  # `fix(deps): ...`, which marks them for the next patch release and its
+  # CHANGELOG entry. Dependabot's default `chore(deps):` would hide that.
+  # See RELEASE.md.
   - package-ecosystem: "gomod"
     directory: "/"
     schedule:
@@ -34,7 +32,7 @@ updates:
         patterns: ["*"]
 
   # /tools is dev tooling (lint, docs generation) — never shipped, so
-  # non-releasing `chore(deps):`.
+  # `chore(deps):`.
   - package-ecosystem: "gomod"
     directory: "/tools"
     schedule:
@@ -46,7 +44,7 @@ updates:
       tools:
         patterns: ["*"]
 
-  # Integration-test fixtures only — never shipped, non-releasing.
+  # Integration-test fixtures only — never shipped.
   - package-ecosystem: "terraform"
     directory: "/integration"
     schedule:

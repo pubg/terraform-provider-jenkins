@@ -1,6 +1,9 @@
 name: Release
 
-# Cuts a release whenever a v* tag is pushed.
+# Cuts a release whenever a maintainer pushes a v* tag, following HashiCorp's
+# terraform-provider-scaffolding-framework release workflow. The built-in
+# GITHUB_TOKEN creates the GitHub Release; no GitHub App is needed because a
+# human-pushed tag already triggers this workflow. See RELEASE.md.
 on:
   push:
     tags:
@@ -20,7 +23,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       # fetch-depth: 0 pulls full history and all tags — required by goreleaser
-      # to identify the previous tag (changelog is owned by release-please).
+      # to identify the previous tag. CHANGELOG.md is maintained by hand.
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:

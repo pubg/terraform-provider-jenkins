@@ -3,12 +3,9 @@ name: CI
 # No workflow-level paths-ignore here, on purpose. This workflow's jobs are
 # required status checks, and a path-filtered required check is never reported
 # on PRs that touch only excluded files, which blocks them from merging
-# permanently. It would also stop versioning.yml's `workflow_run: [CI]` trigger
-# from firing on pushes that only touch release files, breaking the
-# release-please -> tag -> GoReleaser chain. Instead, the `changes` job below
-# detects what changed and the expensive jobs skip themselves via `if:` —
-# skipped checks DO satisfy branch protection, and the workflow still completes
-# so workflow_run still fires.
+# permanently. Instead, the `changes` job below detects what changed and the
+# expensive jobs skip themselves via `if:` — skipped checks DO satisfy branch
+# protection, and the workflow still completes.
 on:
   push:
     branches:
@@ -35,11 +32,10 @@ env:
 jobs:
   # Gate job: decides whether the jobs below actually need to run for this
   # change. `code` is false only when the diff touches nothing but root-level
-  # markdown (README/CHANGELOG/...), LICENSE, or the release-please manifest —
-  # most notably the release-please Release PR (CHANGELOG.md +
-  # .release-please-manifest.json) and its merge to main, which previously
-  # re-ran the full acceptance suite twice per release on code that was
-  # already tested. docs/** and templates/** deliberately count as code:
+  # markdown (README/CHANGELOG/...) or LICENSE — most notably the changelog PR
+  # that prepares a release, which would otherwise re-run the full acceptance
+  # suite on code that was already tested. docs/** and templates/**
+  # deliberately count as code:
   # docs/ is published to the Terraform Registry at each release tag, so doc
   # changes get the full pipeline like any user-visible change.
   changes:
@@ -67,7 +63,6 @@ jobs:
             code:
               - '!*.md'
               - '!LICENSE'
-              - '!.release-please-manifest.json'
 
   lint:
     name: Lint
@@ -337,8 +332,8 @@ jobs:
 
   # Summary job with two purposes:
   # 1. A workflow run whose jobs were ALL skipped by the gate would otherwise
-  #    have no executed job, making the run-level conclusion (which gates
-  #    versioning.yml via workflow_run) ambiguous. This job executes on every
+  #    have no executed job, making the run-level conclusion ambiguous. This
+  #    job executes on every
   #    run that isn't cancelled, so the run always concludes success/failure.
   #    `!cancelled()` rather than `always()`: a superseded PR run cancelled by
   #    the concurrency group skips this job instead of spending a runner to
