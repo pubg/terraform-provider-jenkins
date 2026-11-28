@@ -44,6 +44,8 @@ func TestAccJenkinsCredentialUsername_basic(t *testing.T) {
 				Check: resource.ComposeTestCheckFunc(
 					testAccCheckJenkinsCredentialUsernameExists("jenkins_credential_username.foo", &cred),
 					resource.TestCheckResourceAttr("jenkins_credential_username.foo", "description", "new-description"),
+					// The password was not part of the change and must survive the update.
+					testAccCheckCredentialSecretEquals("", "test-username", "password", "bar"),
 				),
 			},
 		},

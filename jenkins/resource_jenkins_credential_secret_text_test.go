@@ -42,6 +42,8 @@ func TestAccJenkinsCredentialSecretText_basic(t *testing.T) {
 				Check: resource.ComposeTestCheckFunc(
 					testAccCheckJenkinsCredentialSecretTextExists("jenkins_credential_secret_text.foo", &cred),
 					resource.TestCheckResourceAttr("jenkins_credential_secret_text.foo", "description", "new-description"),
+					// The secret was not part of the change and must survive the update.
+					testAccCheckCredentialSecretEquals("", "test-secret-text", "secret", "very-secret"),
 				),
 			},
 		},
@@ -74,7 +76,10 @@ func TestAccJenkinsCredentialSecretText_ignoreChanges(t *testing.T) {
 				    ignore_changes = [secret]
 				  }
 				}`,
-				Check: resource.TestCheckResourceAttr("jenkins_credential_secret_text.foo", "description", "updated"),
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttr("jenkins_credential_secret_text.foo", "description", "updated"),
+					testAccCheckCredentialSecretEquals("", "test-secret-text-ignore", "secret", "initial-secret"),
+				),
 			},
 		},
 	})

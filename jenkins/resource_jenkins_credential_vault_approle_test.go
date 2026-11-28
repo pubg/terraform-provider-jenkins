@@ -43,6 +43,8 @@ func TestAccJenkinsCredentialVaultAppRole_basic(t *testing.T) {
 				Check: resource.ComposeTestCheckFunc(
 					testAccCheckJenkinsCredentialVaultAppRoleExists("jenkins_credential_vault_approle.foo", &cred),
 					resource.TestCheckResourceAttr("jenkins_credential_vault_approle.foo", "description", "new-description"),
+					// The secret ID was not part of the change and must survive the update.
+					testAccCheckCredentialSecretEquals("", "test-approle", "secretId", "bar"),
 				),
 			},
 		},
@@ -117,7 +119,10 @@ func TestAccJenkinsCredentialVaultAppRole_ignoreChanges(t *testing.T) {
 				    ignore_changes = [secret_id]
 				  }
 				}`,
-				Check: resource.TestCheckResourceAttr("jenkins_credential_vault_approle.foo", "description", "updated"),
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttr("jenkins_credential_vault_approle.foo", "description", "updated"),
+					testAccCheckCredentialSecretEquals("", "test-approle-ignore", "secretId", "initial-secret"),
+				),
 			},
 		},
 	})

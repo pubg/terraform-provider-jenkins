@@ -57,6 +57,22 @@ func TestAccJenkinsCredentialSSH_basic(t *testing.T) {
 				Check: resource.ComposeTestCheckFunc(
 					testAccCheckJenkinsCredentialSSHExists("jenkins_credential_ssh.foo", &cred),
 					resource.TestCheckResourceAttr("jenkins_credential_ssh.foo", "passphrase", "SuperSecret"),
+					testAccCheckCredentialSecretEquals("", "test-ssh", "passphrase", "SuperSecret"),
+				),
+			},
+			{
+				// A description change must keep the stored passphrase.
+				Config: `
+				resource jenkins_credential_ssh foo {
+				  name = "test-ssh"
+				  description = "new-description"
+				  username = "test-ssh-user"
+				  privatekey = "Some other fake private key"
+				  passphrase = "SuperSecret"
+				}`,
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttr("jenkins_credential_ssh.foo", "description", "new-description"),
+					testAccCheckCredentialSecretEquals("", "test-ssh", "passphrase", "SuperSecret"),
 				),
 			},
 		},

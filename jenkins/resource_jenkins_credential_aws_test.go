@@ -43,6 +43,8 @@ func TestAccJenkinscredentialAws_basic(t *testing.T) {
 				Check: resource.ComposeTestCheckFunc(
 					testAccCheckJenkinscredentialAwsExists("jenkins_credential_aws.foo", &cred),
 					resource.TestCheckResourceAttr("jenkins_credential_aws.foo", "description", "new-description"),
+					// The secret key was not part of the change and must survive the update.
+					testAccCheckCredentialSecretEquals("", "test-aws-cred", "secretKey", "bar"),
 				),
 			},
 		},

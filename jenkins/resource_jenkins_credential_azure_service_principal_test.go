@@ -79,7 +79,10 @@ func TestAccJenkinsCredentialAzureServicePrincipal_ignoreChanges(t *testing.T) {
 				    ignore_changes = [client_secret]
 				  }
 				}`,
-				Check: resource.TestCheckResourceAttr("jenkins_credential_azure_service_principal.foo", "description", "updated"),
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttr("jenkins_credential_azure_service_principal.foo", "description", "updated"),
+					testAccCheckCredentialSecretEquals("", "test-azure-sp-ignore", "clientSecret", "initial-secret"),
+				),
 			},
 		},
 	})

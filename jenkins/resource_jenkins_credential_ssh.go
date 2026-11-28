@@ -61,9 +61,12 @@ func sshCredentialSpec() credentialSpec[credentialSSHResourceModel] {
 			},
 			{
 				// The passphrase has no write-only companion; it is sent on create
-				// and, on update, only when it changed.
+				// and, on update, only when it changed. Otherwise the stored value
+				// is re-sent encrypted (empty when the key has no passphrase).
 				name:       "passphrase",
 				plainValue: func(m *credentialSSHResourceModel) types.String { return m.Passphrase },
+				// An unchanged value must be re-sent encrypted, or Jenkins stores an empty one.
+				preserve: preserveOptionalEncryptedSecret("passphrase", "SSH key passphrase"),
 			},
 		},
 		build: func(m *credentialSSHResourceModel, secrets map[string]string) interface{} {
